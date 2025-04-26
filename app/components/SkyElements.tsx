@@ -51,7 +51,7 @@ export const CartoonSun = ({ position = [50, 40, -100], size = 20 }) => {
   });
   
   return (
-    <mesh ref={sunRef} position={position}>
+    <mesh ref={sunRef} position={position as unknown as THREE.Vector3}>
       <planeGeometry args={[size * 2, size * 2]} />
       <primitive object={sunMaterial} attach="material" />
     </mesh>
@@ -59,7 +59,7 @@ export const CartoonSun = ({ position = [50, 40, -100], size = 20 }) => {
 };
 
 // Componente para una nube estilo cartoon
-export const CartoonCloud = ({ position = [0, 0, 0], scale = 1, speed = 1, startOffset = 0 }) => {
+export const CartoonCloud = ({ position = [0, 0, 0] as [number, number, number], scale = 1, speed = 1, startOffset = 0 }) => {
   const cloudRef = useRef<THREE.Group>(null);
   
   useFrame(({ clock }) => {
@@ -114,11 +114,11 @@ export const CartoonCloud = ({ position = [0, 0, 0], scale = 1, speed = 1, start
 export const CloudGroup = () => {
   // Crear varias nubes con posiciones aleatorias
   const clouds = [
-    { position: [50, 60, -100], scale: 1.5, speed: 0.7, offset: 0 },
-    { position: [-80, 50, -150], scale: 2, speed: 0.5, offset: 2.5 },
-    { position: [0, 70, -120], scale: 1, speed: 0.9, offset: 5 },
-    { position: [-40, 55, -90], scale: 1.2, speed: 0.6, offset: 1.7 },
-    { position: [100, 45, -130], scale: 1.8, speed: 0.4, offset: 3.8 }
+    { position: [50, 60, -100] as [number, number, number], scale: 1.5, speed: 0.7, offset: 0 },
+    { position: [-80, 50, -150] as [number, number, number], scale: 2, speed: 0.5, offset: 2.5 },
+    { position: [0, 70, -120] as [number, number, number], scale: 1, speed: 0.9, offset: 5 },
+    { position: [-40, 55, -90] as [number, number, number], scale: 1.2, speed: 0.6, offset: 1.7 },
+    { position: [100, 45, -130] as [number, number, number], scale: 1.8, speed: 0.4, offset: 3.8 }
   ];
   
   return (

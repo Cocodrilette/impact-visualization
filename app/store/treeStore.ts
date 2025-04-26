@@ -21,6 +21,7 @@ interface TreeState {
   randomnessFactor: number; // 0-1 factor para determinar cuánto desorden
   autoIncrementEnabled: boolean; // Auto increment trees
   autoIncrementInterval: number; // milliseconds
+  updateTreePositions: () => void; // Función para actualizar posiciones de árboles
   setTreeCount: (count: number) => void;
   setUpdateInterval: (interval: number) => void;
   toggleAutoIncrement: () => void;
@@ -130,6 +131,12 @@ export const useTreeStore = create<TreeState>()(
     autoIncrementEnabled: false,
     autoIncrementInterval: 3000, // Incremento automático cada 3 segundos
     
+    // Función para actualizar posiciones de árboles (ahora como parte del store)
+    updateTreePositions: () => {
+      // Esta función está desactivada pero la mantenemos por compatibilidad
+      console.log("Tree position updates are now handled differently.");
+    },
+    
     setTreeCount: (count: number) => {
       set({ treeCount: count });
       const existingTrees = get().trees;
@@ -203,12 +210,16 @@ export const useTreeStore = create<TreeState>()(
 );
 
 // Inicializar posiciones de los árboles cuando se crea el store
-useTreeStore.getState().updateTreePositions = function() {}; // Desactivar la actualización automática
-calculateGridPositions(
+// Ya no necesitamos esta línea porque hemos definido la función en el store
+// useTreeStore.getState().updateTreePositions = function() {}; // Desactivar la actualización automática
+
+// Inicializar árboles
+const initialTrees = calculateGridPositions(
   useTreeStore.getState().treeCount,
   useTreeStore.getState().gridSize,
   useTreeStore.getState().randomnessFactor,
   []
-).forEach(tree => {
-  useTreeStore.getState().trees.push(tree);
-});
+);
+
+// Actualizar el store con los árboles iniciales
+useTreeStore.setState({ trees: initialTrees });
