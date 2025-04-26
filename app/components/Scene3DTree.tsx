@@ -1,15 +1,73 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Canvas, useThree } from "@react-three/fiber";
-import { OrbitControls } from "@react-three/drei";
+import { OrbitControls, Html } from "@react-three/drei";
 import { useTreeStore } from "../store/treeStore";
 import Tree from "./Tree";
 import Ground from "./Ground";
 import { SkyElements } from "./SkyElements";
 import { useUnergyMetricsData } from "../hooks/api";
 import { ApiTreeUpdater } from "./ApiTreeUpdater";
+import ZoneBoundaries from "./ZoneBoundaries";
+
+// Componente para inicializar las zonas de árboles
+const ZoneInitializer = () => {
+  const { addZone, zones } = useTreeStore();
+  
+  // Inicializar las zonas cuando el componente se monta
+  useEffect(() => {
+    // Solo crear zonas si no hay ninguna
+    if (zones.length === 0) {
+      // Zona 1: América
+      addZone({
+        name: "América",
+        color: "#4CAF50", // Verde
+        position: { x: -25, z: -5 },
+        size: { width: 30, depth: 30 },
+        treeCount: 15
+      });
+      
+      // Zona 2: Europa
+      addZone({
+        name: "Europa",
+        color: "#2196F3", // Azul
+        position: { x: 20, z: -15 },
+        size: { width: 25, depth: 25 },
+        treeCount: 12
+      });
+      
+      // Zona 3: Asia
+      addZone({
+        name: "Asia",
+        color: "#FFC107", // Amarillo
+        position: { x: 0, z: 25 },
+        size: { width: 35, depth: 30 },
+        treeCount: 20
+      });
+    }
+  }, [addZone, zones.length]);
+  
+  return null;
+};
+
+const FixedText = ({savedTress}: {
+  savedTress: number;
+}) => {
+  return (
+    <Html
+      position={[0, 10, 0]} // Centrado en el escenario y elevado
+      center
+      distanceFactor={15}
+    >
+      <div className="fixed-text-label">
+        <h2>{new Intl.NumberFormat().format(savedTress)} Arboles salvados</h2>
+      </div>
+    </Html>
+  );
+};
 
 const TreesGroup = () => {
   const { trees, markTreesAsOld } = useTreeStore();
+  const [labeledTree, setLabeledTree] = useState<number | null>(null);
 
   // Ya no necesitamos actualizar posiciones periódicamente, solo gestionar árboles nuevos
   useEffect(() => {
@@ -25,6 +83,24 @@ const TreesGroup = () => {
     }
   }, [trees, markTreesAsOld]);
 
+  // Efecto para mostrar la etiqueta en un árbol aleatorio cada cierto tiempo
+  useEffect(() => {
+    const showRandomLabelInterval = setInterval(() => {
+      if (trees.length > 0) {
+        // Elegir un árbol aleatorio para mostrar su etiqueta
+        const randomIndex = Math.floor(Math.random() * trees.length);
+        setLabeledTree(trees[randomIndex].id);
+        
+        // Ocultar la etiqueta después de unos segundos
+        setTimeout(() => {
+          setLabeledTree(null);
+        }, 5000);
+      }
+    }, 15000); // Cada 15 segundos muestra una etiqueta
+
+    return () => clearInterval(showRandomLabelInterval);
+  }, [trees]);
+
   return (
     <>
       {trees.map((tree) => {
@@ -32,6 +108,9 @@ const TreesGroup = () => {
         // Para árboles existentes, usar ID para garantizar consistencia
         // Usando módulo para distribuir uniformemente entre las variantes
         const treeVariant = tree.id % 2 === 0 ? 'spherical' : 'lowpoly';
+        
+        // Generar una etiqueta informativa para el árbol
+        const treeLabel = `CO2: -${(tree.id + 1) * 25}kg`;
         
         return (
           <Tree
@@ -41,6 +120,8 @@ const TreesGroup = () => {
             scale={tree.scale || 1} // Usar la escala guardada en el árbol o 1 por defecto
             isNew={tree.isNew}
             variant={treeVariant}
+            label={treeLabel}
+            showLabel={tree.id === labeledTree}
           />
         );
       })}
@@ -92,6 +173,7 @@ const AutoIncrementHandler = () => {
 export const Scene3D = () => {
   const {
     treeCount,
+    zones,
     setTreeCount,
     updateInterval,
     setUpdateInterval,
@@ -103,6 +185,7 @@ export const Scene3D = () => {
     setGridSize,
     randomnessFactor,
     setRandomnessFactor,
+    savedTrees
   } = useTreeStore();
   const { data } = useUnergyMetricsData();
   console.log(data);
@@ -211,22 +294,18 @@ export const Scene3D = () => {
 
       {/* Stats Panel */}
       <div className="absolute top-4 right-4 z-10 bg-white/80 dark:bg-black/80 p-4 rounded-lg shadow">
-        <h3 className="text-base font-medium">Árboles: {treeCount}</h3>
-        {/* <ul className="space-y-1 text-sm"> */}
-          {/* <li>Árboles: {treeCount}</li> */}
-          {/* <li>
-            Dimensión: {Math.ceil(Math.sqrt(treeCount))}x
-            {Math.ceil(Math.sqrt(treeCount))}
-          </li>
-          <li>Separación: {gridSize} unidades</li>
-          <li>Aleatoriedad: {Math.round(randomnessFactor * 100)}%</li> */}
-        {/* </ul> */}
+        <h3 className="text-base font-medium">Árboles Salvados: {savedTrees}</h3>
+        <ul className="space-y-1 text-xs">
+          <li>Árboles generados: {treeCount}</li>
+          <li>Zonas: {zones.length}</li>
+        </ul>
       </div>
 
       {/* 3D Canvas */}
       <Canvas shadows>
         <CameraSetup />
         <AutoIncrementHandler />
+        <ZoneInitializer /> {/* Inicializar las zonas */}
         <OrbitControls enableDamping dampingFactor={0.05} />
         <color attach="background" args={["#87CEEB"]} />{" "}
         {/* Sky blue background */}
@@ -251,10 +330,12 @@ export const Scene3D = () => {
         <ApiTreeUpdater
           updateInterval={60000} // Comprobar actualizaciones cada minuto
           minTimeBetweenRequests={60000} // Mínimo 5 minutos entre peticiones reales
-          incrementalAnimationInterval={500} // Velocidad de aparición de nuevos árboles
+          incrementalAnimationInterval={100} // Velocidad de aparición de nuevos árboles
           enabled={true}
         />
         <TreesGroup />
+        <ZoneBoundaries /> {/* Renderizar los límites de las zonas */}
+        {/* <FixedText savedTress={savedTrees}/> */}
         {/* Add a grid helper for reference */}
         {/* Fog for distance effect */}
         <fog attach="fog" args={["#87CEEB", 30, 250]} />

@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import { Html } from '@react-three/drei';
 
 type TreeVariant = 'spherical' | 'lowpoly';
 
@@ -10,6 +11,8 @@ interface TreeProps {
   scale?: number;
   isNew?: boolean;
   variant?: TreeVariant;
+  label?: string;
+  showLabel?: boolean;
 }
 
 // Tree model that can be rendered in different variants
@@ -18,7 +21,9 @@ export const Tree: React.FC<TreeProps> = ({
   rotation = 0, 
   scale = 1, 
   isNew = false,
-  variant = 'spherical'  // Default to spherical
+  variant = 'spherical',  // Default to spherical
+  label,
+  showLabel = false
 }) => {
   const treeRef = useRef<THREE.Group>(null);
   const [growthProgress, setGrowthProgress] = useState(isNew ? 0 : 1);
@@ -137,9 +142,23 @@ export const Tree: React.FC<TreeProps> = ({
           {/* Top foliage - pointed */}
           <mesh castShadow position={[0, 3.8, 0]}>
             <coneGeometry args={[0.5, 1.2, 4]} />
-            <meshStandardMaterial color="#66BB6A" roughness={0.6} flatShading={true} />
+            <meshStandardMaterial color="#8BC34A" roughness={0.6} flatShading={true} />
           </mesh>
         </>
+      )}
+
+      {/* Floating label over the tree */}
+      {showLabel && label && (
+        <Html
+          position={[0, variant === 'spherical' ? 5.2 : 5.5, 0]}
+          center
+          distanceFactor={15}
+          occlude
+        >
+          <div className="text-label">
+            {label}
+          </div>
+        </Html>
       )}
     </group>
   );

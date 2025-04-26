@@ -10,7 +10,18 @@ interface TreePosition {
   isNew: boolean;
   gridRow: number;
   gridCol: number;
-  randomOffset: { x: number; z: number }; // Offset para desorden controlado
+  randomOffset: { x: number; z: number };
+  zoneId: number; // ID de la zona a la que pertenece el árbol
+}
+
+interface Zone {
+  id: number;
+  name: string;
+  color?: string;
+  position: { x: number; z: number }; // Posición central de la zona
+  size: { width: number; depth: number }; // Ancho y profundidad de la zona
+  treeCount: number; // Número de árboles en la zona
+  treesGenerated: number; // Número de árboles ya generados en la zona
 }
 
 interface ApiCache {
@@ -22,26 +33,28 @@ interface ApiCache {
 interface TreeState {
   treeCount: number;
   trees: TreePosition[];
-  updateInterval: number; // in milliseconds
-  gridSize: number; // Spacing between trees
-  randomnessFactor: number; // 0-1 factor para determinar cuánto desorden
-  autoIncrementEnabled: boolean; // Auto increment trees
-  autoIncrementInterval: number; // milliseconds
+  zones: Zone[];
+  updateInterval: number;
+  gridSize: number;
+  randomnessFactor: number;
+  autoIncrementEnabled: boolean;
+  autoIncrementInterval: number;
   
-  // Nueva configuración para API
-  apiUpdateEnabled: boolean; // Actualización desde API
-  apiUpdateInterval: number; // Intervalo de actualización desde API
-  apiUrl: string; // URL de la API
-  apiTargetCount: number; // Cantidad objetivo de árboles según la API
-  isIncrementalAnimationInProgress: boolean; // Indica si hay una animación incremental en progreso
-  incrementalAnimationInterval: number; // Intervalo para la animación incremental
+  // API configuration
+  apiUpdateEnabled: boolean;
+  apiUpdateInterval: number;
+  apiUrl: string;
+  apiTargetCount: number;
+  isIncrementalAnimationInProgress: boolean;
+  incrementalAnimationInterval: number;
   
-  // Control de caché y rate limiting
+  // Cache and rate limiting
   apiCache: ApiCache | null;
-  minTimeBetweenRequests: number; // tiempo mínimo entre peticiones en ms
-  isRequestInProgress: boolean; // indica si hay una petición en curso
+  minTimeBetweenRequests: number;
+  isRequestInProgress: boolean;
   
-  updateTreePositions: () => void; // Función para actualizar posiciones de árboles
+  // Tree methods
+  updateTreePositions: () => void;
   setTreeCount: (count: number) => void;
   setUpdateInterval: (interval: number) => void;
   toggleAutoIncrement: () => void;
@@ -51,7 +64,7 @@ interface TreeState {
   setGridSize: (size: number) => void;
   setRandomnessFactor: (factor: number) => void;
   
-  // Nuevos métodos para API
+  // API methods
   toggleApiUpdate: () => void;
   setApiUpdateInterval: (interval: number) => void;
   setApiUrl: (url: string) => void;
@@ -60,6 +73,14 @@ interface TreeState {
   startIncrementalAnimation: () => void;
   setIncrementalAnimationInterval: (interval: number) => void;
   setMinTimeBetweenRequests: (time: number) => void;
+  
+  // Zone methods
+  addZone: (zone: Omit<Zone, 'id' | 'treesGenerated'>) => Zone;
+  removeZone: (zoneId: number) => void;
+  updateZone: (zone: Partial<Zone> & { id: number }) => void;
+  incrementTreesInZone: (zoneId: number) => void;
+  getTreesInZone: (zoneId: number) => TreePosition[];
+  setTreeCountForZone: (zoneId: number, count: number) => void;
 }
 
 // Función para generar un offset aleatorio basado en el factor de aleatoriedad y tamaño de cuadrícula
@@ -72,47 +93,56 @@ const generateRandomOffset = (gridSize: number, randomnessFactor: number) => {
   };
 };
 
-// Función optimizada para calcular posiciones en cuadrícula con desorden controlado
-const calculateGridPositions = (
-  count: number, 
-  gridSize: number, 
+// Función para calcular posiciones en cuadrícula dentro de una zona específica
+const calculateGridPositionsForZone = (
+  count: number,
+  gridSize: number,
   randomnessFactor: number,
-  existingTrees: TreePosition[] = []
+  zone: Zone,
+  existingTrees: TreePosition[] = [],
+  zoneId: number
 ): TreePosition[] => {
   // Crear una copia del array existente
   const positions: TreePosition[] = [...existingTrees];
   
-  // Número de árboles existentes
-  const existingCount = existingTrees.length;
+  // Número de árboles existentes en la zona
+  const existingZoneTrees = existingTrees.filter(tree => tree.zoneId === zoneId);
+  const existingCount = existingZoneTrees.length;
   
   // Número de nuevos árboles a crear
   const newTreeCount = count - existingCount;
   
   // Si estamos reduciendo árboles, simplemente devolver un subconjunto
   if (newTreeCount <= 0) {
-    return positions.slice(0, count);
+    return positions.filter(tree => tree.zoneId !== zoneId).concat(existingZoneTrees.slice(0, count));
   }
   
-  // Calcular dimensiones de la cuadrícula basadas en el total de árboles
-  const gridSideLength = Math.ceil(Math.sqrt(count));
+  // Calcular dimensiones de la cuadrícula basadas en la proporción de la zona
+  const aspectRatio = zone.size.width / zone.size.depth;
+  let gridCols = Math.ceil(Math.sqrt(count * aspectRatio));
+  let gridRows = Math.ceil(count / gridCols);
+  
+  // Asegurarse de que la cuadrícula cabe dentro de la zona
+  const cellSizeX = zone.size.width / gridCols;
+  const cellSizeZ = zone.size.depth / gridRows;
   
   // Crear un mapa de posiciones ocupadas para evitar duplicados
   const occupiedPositions = new Map();
-  existingTrees.forEach(tree => {
+  existingZoneTrees.forEach(tree => {
     if (tree.gridRow !== undefined && tree.gridCol !== undefined) {
       occupiedPositions.set(`${tree.gridRow}-${tree.gridCol}`, true);
     }
   });
   
   // ID para los nuevos árboles
-  let nextId = existingCount > 0 ? Math.max(...existingTrees.map(t => t.id)) + 1 : 0;
+  let nextId = positions.length > 0 ? Math.max(...positions.map(t => t.id)) + 1 : 0;
   
   // Contador para los nuevos árboles añadidos
   let newTreesAdded = 0;
   
-  // Generar posiciones para los nuevos árboles
-  for (let row = 0; row < gridSideLength && newTreesAdded < newTreeCount; row++) {
-    for (let col = 0; col < gridSideLength && newTreesAdded < newTreeCount; col++) {
+  // Generar posiciones para los nuevos árboles dentro de la zona
+  for (let row = 0; row < gridRows && newTreesAdded < newTreeCount; row++) {
+    for (let col = 0; col < gridCols && newTreesAdded < newTreeCount; col++) {
       // Verificar si esta posición ya está ocupada
       const posKey = `${row}-${col}`;
       if (!occupiedPositions.has(posKey)) {
@@ -125,9 +155,9 @@ const calculateGridPositions = (
         // Generar una rotación fija para este árbol
         const fixedRotation = Math.random() * Math.PI * 2; // Entre 0 y 2π
         
-        // Calcular posiciones centradas en el sistema de coordenadas 3D, con offset aleatorio
-        const x = (col - (gridSideLength - 1) / 2) * gridSize + randomOffset.x;
-        const z = (row - (gridSideLength - 1) / 2) * gridSize + randomOffset.z;
+        // Calcular posiciones dentro de la zona, con offset aleatorio
+        const x = zone.position.x - zone.size.width / 2 + cellSizeX * (col + 0.5) + randomOffset.x;
+        const z = zone.position.z - zone.size.depth / 2 + cellSizeZ * (row + 0.5) + randomOffset.z;
         
         positions.push({
           id: nextId++,
@@ -135,10 +165,11 @@ const calculateGridPositions = (
           z,
           rotation: fixedRotation,
           scale: fixedScale,
-          isNew: true, // Marcar como nuevo para la animación
-          gridRow: row, // Guardar coordenadas de la cuadrícula
+          isNew: true,
+          gridRow: row,
           gridCol: col,
-          randomOffset // Guardar el offset para mantenerlo consistente
+          randomOffset,
+          zoneId
         });
         
         // Marcar esta posición como ocupada
@@ -153,45 +184,35 @@ const calculateGridPositions = (
 
 export const useTreeStore = create<TreeState>()(
   subscribeWithSelector((set, get) => ({
-    treeCount: 10, // Comenzar con pocos árboles
+    treeCount: 0,
     trees: [],
-    updateInterval: 5000, // Intervalo de actualización: 5 segundos
-    gridSize: 6, // Espacio entre árboles
-    randomnessFactor: 0.8, // Valor predeterminado: desorden moderado
+    zones: [],
+    updateInterval: 5000,
+    gridSize: 5,
+    randomnessFactor: 0.6,
     autoIncrementEnabled: false,
-    autoIncrementInterval: 3000, // Incremento automático cada 3 segundos
+    autoIncrementInterval: 3000,
     
-    // Nueva configuración para API
-    apiUpdateEnabled: false, // Actualización desde API desactivada por defecto
-    apiUpdateInterval: 10000, // Intervalo de actualización desde API: 10 segundos
-    apiUrl: process.env.NEXT_PUBLIC_UNERGY_METRICS_API || "", // URL de la API vacía por defecto
-    apiTargetCount: 0, // Cantidad objetivo de árboles según la API
-    isIncrementalAnimationInProgress: false, // Indica si hay una animación incremental en progreso
-    incrementalAnimationInterval: 1000, // Intervalo para la animación incremental
+    // API configuration
+    apiUpdateEnabled: false,
+    apiUpdateInterval: 10000,
+    apiUrl: process.env.NEXT_PUBLIC_UNERGY_METRICS_API || "",
+    apiTargetCount: 0,
+    isIncrementalAnimationInProgress: false,
+    incrementalAnimationInterval: 1000,
     
-    // Control de caché y rate limiting
+    // Cache and rate limiting
     apiCache: null,
-    minTimeBetweenRequests: 60000, // 1 minuto por defecto
+    minTimeBetweenRequests: 60000,
     isRequestInProgress: false,
     
-    // Función para actualizar posiciones de árboles (ahora como parte del store)
+    // Función para actualizar posiciones de árboles
     updateTreePositions: () => {
-      // Esta función está desactivada pero la mantenemos por compatibilidad
       console.log("Tree position updates are now handled differently.");
     },
     
     setTreeCount: (count: number) => {
       set({ treeCount: count });
-      const existingTrees = get().trees;
-      
-      // Pasar árboles existentes para mantener sus posiciones
-      const updatedTrees = calculateGridPositions(
-        count, 
-        get().gridSize, 
-        get().randomnessFactor,
-        existingTrees
-      );
-      set({ trees: updatedTrees });
     },
     
     setUpdateInterval: (interval: number) => {
@@ -208,19 +229,19 @@ export const useTreeStore = create<TreeState>()(
     
     incrementTreeCount: () => {
       const currentCount = get().treeCount;
-      // Incrementar en 1 sin límite superior
       const newCount = currentCount + 1;
       set({ treeCount: newCount });
       
-      // Actualizar posiciones preservando árboles existentes
-      const existingTrees = get().trees;
-      const updatedTrees = calculateGridPositions(
-        newCount, 
-        get().gridSize, 
-        get().randomnessFactor,
-        existingTrees
-      );
-      set({ trees: updatedTrees });
+      // Si hay zonas, incrementar un árbol en una zona aleatoria
+      const { zones } = get();
+      if (zones.length > 0) {
+        const availableZones = zones.filter(zone => zone.treesGenerated < zone.treeCount);
+        if (availableZones.length > 0) {
+          const randomIndex = Math.floor(Math.random() * availableZones.length);
+          const targetZone = availableZones[randomIndex];
+          get().incrementTreesInZone(targetZone.id);
+        }
+      }
     },
     
     // Marcar todos los árboles como viejos después de completar la animación
@@ -233,24 +254,14 @@ export const useTreeStore = create<TreeState>()(
     // Ajustar el tamaño de la cuadrícula
     setGridSize: (size: number) => {
       set({ gridSize: size });
-      // Reorganizar todos los árboles cuando se cambia el tamaño de la cuadrícula
-      const { treeCount, randomnessFactor } = get();
-      // Iniciar con un array vacío para recalcular todas las posiciones
-      const updatedTrees = calculateGridPositions(treeCount, size, randomnessFactor, []);
-      set({ trees: updatedTrees });
     },
     
     // Ajustar el factor de aleatoriedad
     setRandomnessFactor: (factor: number) => {
       set({ randomnessFactor: factor });
-      // Reorganizar todos los árboles cuando se cambia el factor de aleatoriedad
-      const { treeCount, gridSize } = get();
-      // Iniciar con un array vacío para recalcular todas las posiciones con el nuevo factor
-      const updatedTrees = calculateGridPositions(treeCount, gridSize, factor, []);
-      set({ trees: updatedTrees });
     },
     
-    // Nuevos métodos para API
+    // API methods
     toggleApiUpdate: () => {
       set(state => ({ apiUpdateEnabled: !state.apiUpdateEnabled }));
     },
@@ -265,7 +276,7 @@ export const useTreeStore = create<TreeState>()(
     
     updateTreesFromApi: async () => {
       const { apiUrl, isIncrementalAnimationInProgress, apiCache, minTimeBetweenRequests, isRequestInProgress } = get();
-
+      
       // No hacer nada si una animación incremental ya está en progreso
       if (isIncrementalAnimationInProgress) {
         console.log("Incremental animation in progress, skipping API update");
@@ -306,7 +317,6 @@ export const useTreeStore = create<TreeState>()(
         }
         
         const data = await response.json();
-        console.log("API response:", data);
         
         // Verificar si el campo arboles_salvados existe en la respuesta
         if (data && data.arboles_salvados) {
@@ -315,28 +325,45 @@ export const useTreeStore = create<TreeState>()(
           
           if (!isNaN(arbolesCount)) {
             // Calcular el número de árboles a mostrar (ajuste según necesidad)
-            // Aquí dividimos por 10000 para tener un número manejable 
-            const targetCount = Math.round(arbolesCount / 100);
-            console.log(`API response: ${arbolesCount} trees, target count: ${targetCount}`);
+            // Aquí dividimos por 1000 para tener un número manejable 
+            const targetCount = Math.round(arbolesCount / 1000);
             
             // Obtener el conteo actual de árboles
-            const currentCount = get().treeCount;
+            const currentCount = get().trees.length;
             
             // Actualizar el conteo objetivo
             get().setApiTargetCount(targetCount);
             
             console.log(`API árboles: ${arbolesCount}, objetivo: ${targetCount}, actual: ${currentCount}`);
             
-            if (targetCount > currentCount) {
+            // Si hay zonas, distribuir los árboles entre las zonas existentes
+            const { zones } = get();
+            if (zones.length > 0) {
+              const treesToAdd = targetCount - currentCount;
+              if (treesToAdd > 0) {
+                // Distribuir proporcionalmente entre las zonas
+                const treesPerZone = Math.floor(treesToAdd / zones.length);
+                const remainder = treesToAdd % zones.length;
+                
+                zones.forEach((zone, index) => {
+                  const zoneAdd = treesPerZone + (index < remainder ? 1 : 0);
+                  if (zoneAdd > 0) {
+                    get().updateZone({
+                      id: zone.id,
+                      treeCount: zone.treeCount + zoneAdd
+                    });
+                  }
+                });
+              }
+            } else if (targetCount > currentCount) {
               console.log(`Iniciando animación incremental para añadir ${targetCount - currentCount} árboles`);
               // Si es la primera carga de datos, mostrar uno por uno
               get().startIncrementalAnimation();
             } else if (targetCount < currentCount) {
               // Si hay menos árboles que antes (raro, pero posible), ajustar inmediatamente
               console.log(`Reduciendo árboles de ${currentCount} a ${targetCount}`);
-              get().setTreeCount(targetCount);
+              set({ trees: get().trees.slice(0, targetCount) });
             }
-            // Si es igual, no hacemos nada
             
             // Actualizar la caché
             set({
@@ -362,12 +389,15 @@ export const useTreeStore = create<TreeState>()(
     },
     
     startIncrementalAnimation: () => {
-      const { apiTargetCount, treeCount, incrementalAnimationInterval } = get();
-      if (apiTargetCount > treeCount) {
+      const { apiTargetCount, trees, incrementalAnimationInterval } = get();
+      const currentCount = trees.length;
+      
+      if (apiTargetCount > currentCount) {
         set({ isIncrementalAnimationInProgress: true });
+        
         const intervalId = setInterval(() => {
-          const { treeCount, apiTargetCount } = get();
-          if (treeCount < apiTargetCount) {
+          const { trees, apiTargetCount } = get();
+          if (trees.length < apiTargetCount) {
             get().incrementTreeCount();
           } else {
             clearInterval(intervalId);
@@ -384,20 +414,129 @@ export const useTreeStore = create<TreeState>()(
     setMinTimeBetweenRequests: (time: number) => {
       set({ minTimeBetweenRequests: time });
     },
+    
+    // Zone methods
+    addZone: (zone) => {
+      const { zones } = get();
+      const newZone: Zone = {
+        ...zone,
+        id: zones.length > 0 ? Math.max(...zones.map(z => z.id)) + 1 : 1,
+        treesGenerated: 0
+      };
+      
+      set({ zones: [...zones, newZone] });
+      return newZone;
+    },
+    
+    removeZone: (zoneId) => {
+      const { zones, trees } = get();
+      // Eliminar la zona
+      const updatedZones = zones.filter(zone => zone.id !== zoneId);
+      // Eliminar los árboles de la zona
+      const updatedTrees = trees.filter(tree => tree.zoneId !== zoneId);
+      
+      set({ 
+        zones: updatedZones,
+        trees: updatedTrees
+      });
+    },
+    
+    updateZone: (zoneUpdate) => {
+      const { zones } = get();
+      const updatedZones = zones.map(zone => 
+        zone.id === zoneUpdate.id ? { ...zone, ...zoneUpdate } : zone
+      );
+      
+      set({ zones: updatedZones });
+      
+      // Si el número de árboles se actualizó, regenerar árboles
+      const updatedZone = updatedZones.find(z => z.id === zoneUpdate.id);
+      if (updatedZone && 'treeCount' in zoneUpdate) {
+        const targetCount = zoneUpdate.treeCount as number;
+        
+        // Iniciar generación incremental si se están añadiendo árboles
+        if (targetCount > updatedZone.treesGenerated) {
+          const intervalId = setInterval(() => {
+            const { zones } = get();
+            const currentZone = zones.find(z => z.id === zoneUpdate.id);
+            if (currentZone && currentZone.treesGenerated < targetCount) {
+              get().incrementTreesInZone(zoneUpdate.id);
+            } else {
+              clearInterval(intervalId);
+            }
+          }, get().incrementalAnimationInterval);
+        } else if (targetCount < updatedZone.treesGenerated) {
+          // Reducir árboles inmediatamente
+          get().setTreeCountForZone(zoneUpdate.id, targetCount);
+        }
+      }
+    },
+    
+    incrementTreesInZone: (zoneId) => {
+      const { zones, trees, gridSize, randomnessFactor } = get();
+      const zone = zones.find(z => z.id === zoneId);
+      
+      if (!zone) return;
+      
+      if (zone.treesGenerated < zone.treeCount) {
+        // Añadir un nuevo árbol a la zona
+        const updatedTrees = calculateGridPositionsForZone(
+          zone.treesGenerated + 1,
+          gridSize,
+          randomnessFactor,
+          zone,
+          trees,
+          zoneId
+        );
+        
+        // Actualizar el contador de árboles generados en la zona
+        const updatedZones = zones.map(z => 
+          z.id === zoneId ? { ...z, treesGenerated: z.treesGenerated + 1 } : z
+        );
+        
+        set({ 
+          trees: updatedTrees,
+          zones: updatedZones,
+          treeCount: updatedTrees.length
+        });
+      }
+    },
+    
+    getTreesInZone: (zoneId) => {
+      return get().trees.filter(tree => tree.zoneId === zoneId);
+    },
+    
+    setTreeCountForZone: (zoneId, count) => {
+      const { zones, trees, gridSize, randomnessFactor } = get();
+      const zone = zones.find(z => z.id === zoneId);
+      
+      if (!zone) return;
+      
+      // Eliminar los árboles existentes de esta zona
+      let updatedTrees = trees.filter(tree => tree.zoneId !== zoneId);
+      
+      if (count > 0) {
+        // Generar nuevos árboles para la zona
+        updatedTrees = calculateGridPositionsForZone(
+          count,
+          gridSize,
+          randomnessFactor,
+          zone,
+          updatedTrees,
+          zoneId
+        );
+      }
+      
+      // Actualizar la zona con el nuevo conteo
+      const updatedZones = zones.map(z => 
+        z.id === zoneId ? { ...z, treeCount: count, treesGenerated: count } : z
+      );
+      
+      set({ 
+        trees: updatedTrees, 
+        zones: updatedZones,
+        treeCount: updatedTrees.length
+      });
+    }
   }))
 );
-
-// Inicializar posiciones de los árboles cuando se crea el store
-// Ya no necesitamos esta línea porque hemos definido la función en el store
-// useTreeStore.getState().updateTreePositions = function() {}; // Desactivar la actualización automática
-
-// Inicializar árboles
-const initialTrees = calculateGridPositions(
-  useTreeStore.getState().treeCount,
-  useTreeStore.getState().gridSize,
-  useTreeStore.getState().randomnessFactor,
-  []
-);
-
-// Actualizar el store con los árboles iniciales
-useTreeStore.setState({ trees: initialTrees });
