@@ -15,7 +15,7 @@ export const Ground: React.FC<GroundProps> = ({ size = 1000 }) => {
     >
       <planeGeometry args={[size, size]} />
       <meshStandardMaterial 
-        color="#4a7c59"
+        color="#8EB520"
         roughness={0.8}
         metalness={0.1}
       />
