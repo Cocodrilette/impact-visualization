@@ -7,6 +7,8 @@ interface TreePosition {
   z: number;
   rotation: number;
   isNew: boolean;
+  gridRow: number; // Añadimos coordenadas de la cuadrícula para mejor organización
+  gridCol: number;
 }
 
 interface TreeState {
@@ -23,34 +25,49 @@ interface TreeState {
   setAutoIncrementInterval: (interval: number) => void;
   incrementTreeCount: () => void;
   markTreesAsOld: () => void;
+  setGridSize: (size: number) => void;
 }
 
-// Calculate grid positions for trees in a square layout
+// Función optimizada para calcular posiciones en cuadrícula
 const calculateGridPositions = (count: number, gridSize: number, existingTrees: TreePosition[] = []): TreePosition[] => {
+  // Crear una copia del array existente
   const positions: TreePosition[] = [...existingTrees];
   
-  // Keep existing trees at their positions
+  // Número de árboles existentes
   const existingCount = existingTrees.length;
   
-  // Only generate positions for new trees
+  // Número de nuevos árboles a crear
   const newTreeCount = count - existingCount;
   
+  // Si estamos reduciendo árboles, simplemente devolver un subconjunto
   if (newTreeCount <= 0) {
-    return positions.slice(0, count); // Return subset if reducing trees
+    return positions.slice(0, count);
   }
   
-  // Calculate grid dimensions based on total count
+  // Calcular dimensiones de la cuadrícula basadas en el total de árboles
   const gridSideLength = Math.ceil(Math.sqrt(count));
   
-  // Generate positions only for new trees
+  // Crear un mapa de posiciones ocupadas para evitar duplicados
+  const occupiedPositions = new Map();
+  existingTrees.forEach(tree => {
+    if (tree.gridRow !== undefined && tree.gridCol !== undefined) {
+      occupiedPositions.set(`${tree.gridRow}-${tree.gridCol}`, true);
+    }
+  });
+  
+  // ID para los nuevos árboles
   let nextId = existingCount > 0 ? Math.max(...existingTrees.map(t => t.id)) + 1 : 0;
   
-  for (let row = 0; row < gridSideLength; row++) {
-    for (let col = 0; col < gridSideLength; col++) {
-      const index = row * gridSideLength + col;
-      
-      if (index >= existingCount && index < count) {
-        // Calculate centered grid positions
+  // Contador para los nuevos árboles añadidos
+  let newTreesAdded = 0;
+  
+  // Generar posiciones para los nuevos árboles
+  for (let row = 0; row < gridSideLength && newTreesAdded < newTreeCount; row++) {
+    for (let col = 0; col < gridSideLength && newTreesAdded < newTreeCount; col++) {
+      // Verificar si esta posición ya está ocupada
+      const posKey = `${row}-${col}`;
+      if (!occupiedPositions.has(posKey)) {
+        // Calcular posiciones centradas en el sistema de coordenadas 3D
         const x = (col - (gridSideLength - 1) / 2) * gridSize;
         const z = (row - (gridSideLength - 1) / 2) * gridSize;
         
@@ -58,9 +75,15 @@ const calculateGridPositions = (count: number, gridSize: number, existingTrees: 
           id: nextId++,
           x,
           z,
-          rotation: Math.random() * Math.PI * 2, // Random rotation - stays fixed
-          isNew: true // Mark as new for animation
+          rotation: Math.random() * Math.PI * 2, // Rotación aleatoria fija
+          isNew: true, // Marcar como nuevo para la animación
+          gridRow: row, // Guardar coordenadas de la cuadrícula
+          gridCol: col
         });
+        
+        // Marcar esta posición como ocupada
+        occupiedPositions.set(posKey, true);
+        newTreesAdded++;
       }
     }
   }
@@ -70,18 +93,18 @@ const calculateGridPositions = (count: number, gridSize: number, existingTrees: 
 
 export const useTreeStore = create<TreeState>()(
   subscribeWithSelector((set, get) => ({
-    treeCount: 4, // Start with fewer trees
+    treeCount: 4, // Comenzar con pocos árboles
     trees: [],
-    updateInterval: 5000, // Update interval: 5 seconds
-    gridSize: 5, // Space between trees
+    updateInterval: 5000, // Intervalo de actualización: 5 segundos
+    gridSize: 5, // Espacio entre árboles
     autoIncrementEnabled: false,
-    autoIncrementInterval: 3000, // Auto increment every 3 seconds
+    autoIncrementInterval: 3000, // Incremento automático cada 3 segundos
     
     setTreeCount: (count: number) => {
       set({ treeCount: count });
       const existingTrees = get().trees;
       
-      // Pass existing trees to maintain their positions
+      // Pasar árboles existentes para mantener sus posiciones
       const updatedTrees = calculateGridPositions(count, get().gridSize, existingTrees);
       set({ trees: updatedTrees });
     },
@@ -93,7 +116,7 @@ export const useTreeStore = create<TreeState>()(
     updateTreePositions: () => {
       const { treeCount, gridSize, trees } = get();
       
-      // Preserve existing tree positions and rotations
+      // Preservar posiciones y rotaciones de árboles existentes
       const updatedTrees = calculateGridPositions(treeCount, gridSize, trees);
       set({ trees: updatedTrees });
     },
@@ -108,24 +131,34 @@ export const useTreeStore = create<TreeState>()(
     
     incrementTreeCount: () => {
       const currentCount = get().treeCount;
-      // Increment by 1 with no upper limit
+      // Incrementar en 1 sin límite superior
       const newCount = currentCount + 1;
       set({ treeCount: newCount });
       
-      // Update positions while preserving existing trees
+      // Actualizar posiciones preservando árboles existentes
       const existingTrees = get().trees;
       const updatedTrees = calculateGridPositions(newCount, get().gridSize, existingTrees);
       set({ trees: updatedTrees });
     },
     
-    // Mark all trees as old (no longer new) after animation completes
+    // Marcar todos los árboles como viejos después de completar la animación
     markTreesAsOld: () => {
       set(state => ({
         trees: state.trees.map(tree => ({ ...tree, isNew: false }))
       }));
     },
+    
+    // Nueva función para ajustar el tamaño de la cuadrícula
+    setGridSize: (size: number) => {
+      set({ gridSize: size });
+      // Reorganizar todos los árboles cuando se cambia el tamaño de la cuadrícula
+      const { treeCount } = get();
+      // Iniciar con un array vacío para recalcular todas las posiciones
+      const updatedTrees = calculateGridPositions(treeCount, size, []);
+      set({ trees: updatedTrees });
+    },
   }))
 );
 
-// Initialize tree positions when the store is created
+// Inicializar posiciones de los árboles cuando se crea el store
 useTreeStore.getState().updateTreePositions();

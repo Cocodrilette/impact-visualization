@@ -50,12 +50,11 @@ const TreesGroup = () => {
 // Camera control and setup with auto-adjustment based on tree count
 const CameraSetup = () => {
   const { camera } = useThree();
-  const { trees, treeCount } = useTreeStore();
+  const { trees, treeCount, gridSize } = useTreeStore();
   
   useEffect(() => {
     // Calculate camera position based on tree grid size
     const gridSideLength = Math.ceil(Math.sqrt(treeCount));
-    const gridSize = useTreeStore.getState().gridSize;
     
     // Calculate required distance to view all trees
     // The higher the tree count, the further away the camera needs to be
@@ -65,7 +64,7 @@ const CameraSetup = () => {
     // Position the camera based on the grid size
     camera.position.set(0, height, distance);
     camera.lookAt(0, 0, 0);
-  }, [camera, trees, treeCount]);
+  }, [camera, trees, treeCount, gridSize]);
   
   return null;
 };
@@ -97,13 +96,15 @@ export const Scene3D = () => {
     autoIncrementEnabled,
     toggleAutoIncrement,
     autoIncrementInterval,
-    setAutoIncrementInterval
+    setAutoIncrementInterval,
+    gridSize,
+    setGridSize
   } = useTreeStore();
 
   return (
     <div className="h-full w-full relative">
       {/* Controls UI */}
-      <div className="absolute top-4 left-4 z-10 bg-white/80 dark:bg-black/80 p-4 rounded-lg shadow">
+      <div className="absolute top-4 left-4 z-10 bg-white/80 dark:bg-black/80 p-4 rounded-lg shadow max-h-[calc(100vh-8rem)] overflow-y-auto">
         <h2 className="text-lg font-bold mb-2">Controls</h2>
         <div className="space-y-4">
           <div>
@@ -116,6 +117,19 @@ export const Scene3D = () => {
               onChange={(e) => setTreeCount(parseInt(e.target.value))}
               className="w-full"
             />
+          </div>
+          
+          <div>
+            <label className="block mb-1">Grid Spacing: {gridSize}</label>
+            <input
+              type="range"
+              min="3"
+              max="20"
+              value={gridSize}
+              onChange={(e) => setGridSize(parseInt(e.target.value))}
+              className="w-full"
+            />
+            <span className="text-xs text-gray-500">Controla la separación entre árboles en la cuadrícula</span>
           </div>
           
           <div>
@@ -161,6 +175,16 @@ export const Scene3D = () => {
             />
           </div>
         </div>
+      </div>
+      
+      {/* Stats Panel */}
+      <div className="absolute top-4 right-4 z-10 bg-white/80 dark:bg-black/80 p-4 rounded-lg shadow">
+        <h3 className="text-base font-medium mb-2">Estadísticas</h3>
+        <ul className="space-y-1 text-sm">
+          <li>Árboles: {treeCount}</li>
+          <li>Dimensión: {Math.ceil(Math.sqrt(treeCount))}x{Math.ceil(Math.sqrt(treeCount))}</li>
+          <li>Separación: {gridSize} unidades</li>
+        </ul>
       </div>
       
       {/* 3D Canvas */}
