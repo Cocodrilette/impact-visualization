@@ -14,7 +14,7 @@ interface TreePosition {
   zoneId: number; // ID de la zona a la que pertenece el árbol
 }
 
-interface Zone {
+export interface Zone {
   id: number;
   name: string;
   color?: string;
@@ -32,6 +32,7 @@ interface ApiCache {
 
 interface TreeState {
   treeCount: number;
+  savedTreeCount: number;
   trees: TreePosition[];
   zones: Zone[];
   updateInterval: number;
@@ -185,6 +186,7 @@ const calculateGridPositionsForZone = (
 export const useTreeStore = create<TreeState>()(
   subscribeWithSelector((set, get) => ({
     treeCount: 0,
+    savedTreeCount: 0,
     trees: [],
     zones: [],
     updateInterval: 5000,
@@ -322,6 +324,7 @@ export const useTreeStore = create<TreeState>()(
         if (data && data.arboles_salvados) {
           // Convertir el string a número
           const arbolesCount = Math.round(parseFloat(data.arboles_salvados));
+          set({ savedTreeCount: arbolesCount });
           
           if (!isNaN(arbolesCount)) {
             // Calcular el número de árboles a mostrar (ajuste según necesidad)

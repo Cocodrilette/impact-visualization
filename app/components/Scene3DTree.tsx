@@ -5,64 +5,120 @@ import { useTreeStore } from "../store/treeStore";
 import Tree from "./Tree";
 import Ground from "./Ground";
 import { SkyElements } from "./SkyElements";
-import { useUnergyMetricsData } from "../hooks/api";
+import { useUnergyMetricsData, useUnergyProjectsApi, fetchMinifarms } from "../hooks/api";
 import { ApiTreeUpdater } from "./ApiTreeUpdater";
 import ZoneBoundaries from "./ZoneBoundaries";
+import ZoneControls from "./ZoneControls";
+import { Zone } from "../store/treeStore";
 
 // Componente para inicializar las zonas de árboles
 const ZoneInitializer = () => {
   const { addZone, zones } = useTreeStore();
-  
-  // Inicializar las zonas cuando el componente se monta
+  const [isLoading, setIsLoading] = useState(false);
+
   useEffect(() => {
-    // Solo crear zonas si no hay ninguna
-    if (zones.length === 0) {
-      // Zona 1: América
-      addZone({
-        name: "América",
-        color: "#4CAF50", // Verde
-        position: { x: -25, z: -5 },
-        size: { width: 30, depth: 30 },
-        treeCount: 15
-      });
+    if (zones.length === 0 && !isLoading) {
+      // Marcar como cargando para evitar múltiples llamadas
+      setIsLoading(true);
       
-      // Zona 2: Europa
-      addZone({
-        name: "Europa",
-        color: "#2196F3", // Azul
-        position: { x: 20, z: -15 },
-        size: { width: 25, depth: 25 },
-        treeCount: 12
-      });
+      const initializeZones = async () => {
+        try {
+          const minifarms = await fetchMinifarms();
+          console.log("Minifarms data:", minifarms);
+          
+          if (minifarms.length === 0) {
+            console.warn("No minifarms found, using default zones");
+            // Usar valores por defecto si no hay minifarms
+            createDefaultZones();
+            return;
+          }
+          
+          // Calcular el layout para las zonas
+          const minifarmCount = minifarms.length;
+          const zoneSpacing = 40; // Distancia entre zonas
+          
+          // Calcular dimensiones de la cuadrícula para las zonas
+          const gridSize = Math.ceil(Math.sqrt(minifarmCount));
+          let row = 0;
+          let col = 0;
+          
+          minifarms.forEach((minifarm, index) => {
+            // Calcular posición en la cuadrícula
+            col = index % gridSize;
+            row = Math.floor(index / gridSize);
+            
+            const x = (col - Math.floor(gridSize / 2)) * zoneSpacing;
+            const z = (row - Math.floor(gridSize / 2)) * zoneSpacing;
+            
+            // Calcular tamaño de zona en función del número de árboles
+            const baseSize = 20;
+            const sizeMultiplier = 1;
+            const width = baseSize + (minifarm.treeCount / 1000) * sizeMultiplier;
+            const depth = baseSize + (minifarm.treeCount / 1000) * sizeMultiplier;
+            
+            // Crear la zona con datos de la minifarm
+            addZone({
+              name: minifarm.name,
+              color: minifarm.color,
+              position: { x, z },
+              size: { width, depth },
+              treeCount: minifarm.treeCount,
+            });
+          });
+          
+        } catch (error) {
+          console.error("Error initializing zones:", error);
+          // Si hay un error, crear zonas por defecto
+          createDefaultZones();
+        } finally {
+          setIsLoading(false);
+        }
+      };
       
-      // Zona 3: Asia
-      addZone({
-        name: "Asia",
-        color: "#FFC107", // Amarillo
-        position: { x: 0, z: 25 },
-        size: { width: 35, depth: 30 },
-        treeCount: 20
-      });
+      initializeZones();
     }
-  }, [addZone, zones.length]);
+  }, [addZone, zones.length, isLoading]);
+  
+  // Función para crear zonas predeterminadas si la API falla
+  const createDefaultZones = () => {
+    // Zona 1
+    addZone({
+      name: "Zona 1",
+      color: "#4CAF50",
+      position: { x: -40, z: 0 },
+      size: { width: 30, depth: 30 },
+      treeCount: 15,
+    });
+    
+    // Zona 2
+    addZone({
+      name: "Zona 2",
+      color: "#2196F3",
+      position: { x: 0, z: -40 },
+      size: { width: 25, depth: 25 },
+      treeCount: 12,
+    });
+    
+    // Zona 3
+    addZone({
+      name: "Zona 3",
+      color: "#FFC107",
+      position: { x: 40, z: 0 },
+      size: { width: 35, depth: 30 },
+      treeCount: 20,
+    });
+    
+    // Zona 4
+    addZone({
+      name: "Zona 4",
+      color: "#E91E63",
+      position: { x: 0, z: 40 },
+      size: { width: 28, depth: 28 },
+      treeCount: 18,
+    });
+  };
   
   return null;
-};
-
-const FixedText = ({savedTress}: {
-  savedTress: number;
-}) => {
-  return (
-    <Html
-      position={[0, 10, 0]} // Centrado en el escenario y elevado
-      center
-      distanceFactor={15}
-    >
-      <div className="fixed-text-label">
-        <h2>{new Intl.NumberFormat().format(savedTress)} Arboles salvados</h2>
-      </div>
-    </Html>
-  );
 };
 
 const TreesGroup = () => {
@@ -90,7 +146,7 @@ const TreesGroup = () => {
         // Elegir un árbol aleatorio para mostrar su etiqueta
         const randomIndex = Math.floor(Math.random() * trees.length);
         setLabeledTree(trees[randomIndex].id);
-        
+
         // Ocultar la etiqueta después de unos segundos
         setTimeout(() => {
           setLabeledTree(null);
@@ -107,11 +163,11 @@ const TreesGroup = () => {
         // Determinar variante del árbol basado en el ID
         // Para árboles existentes, usar ID para garantizar consistencia
         // Usando módulo para distribuir uniformemente entre las variantes
-        const treeVariant = tree.id % 2 === 0 ? 'spherical' : 'lowpoly';
-        
+        const treeVariant = tree.id % 2 === 0 ? "spherical" : "lowpoly";
+
         // Generar una etiqueta informativa para el árbol
         const treeLabel = `CO2: -${(tree.id + 1) * 25}kg`;
-        
+
         return (
           <Tree
             key={tree.id}
@@ -185,7 +241,7 @@ export const Scene3D = () => {
     setGridSize,
     randomnessFactor,
     setRandomnessFactor,
-    savedTrees
+    savedTreeCount,
   } = useTreeStore();
   const { data } = useUnergyMetricsData();
   console.log(data);
@@ -294,7 +350,9 @@ export const Scene3D = () => {
 
       {/* Stats Panel */}
       <div className="absolute top-4 right-4 z-10 bg-white/80 dark:bg-black/80 p-4 rounded-lg shadow">
-        <h3 className="text-base font-medium">Árboles Salvados: {savedTrees}</h3>
+        <h3 className="text-base font-medium">
+          Árboles Salvados: {savedTreeCount}
+        </h3>
         <ul className="space-y-1 text-xs">
           <li>Árboles generados: {treeCount}</li>
           <li>Zonas: {zones.length}</li>
