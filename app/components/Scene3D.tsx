@@ -3,9 +3,18 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 import { useTreeStore } from '../store/treeStore';
+import { useHouseStore } from '../store/houseStore';
 import Tree from './Tree';
+import House from './House';
 import Ground from './Ground';
 import { SkyElements } from './SkyElements';
+
+
+export enum ItemToRender {
+  TREE = 'tree',
+  HOUSE = 'house',
+}
+
 
 const TreesGroup = () => {
   const { trees, updateInterval, updateTreePositions, markTreesAsOld } = useTreeStore();
@@ -38,6 +47,40 @@ const TreesGroup = () => {
     </>
   );
 };
+
+const HousesGroup = () => {
+  const { houses, updateInterval, updateHousePositions, markHousesAsOld } = useHouseStore();
+  
+  // Ya no necesitamos actualizar posiciones periódicamente, solo gestionar árboles nuevos
+  useEffect(() => {
+    const hasNewTree = houses.some(tree => tree.isNew);
+    
+    if (hasNewTree) {
+      // Wait for animation to complete before marking trees as old
+      const timeout = setTimeout(() => {
+        markHousesAsOld();
+      }, 2000); // Animation duration + buffer
+      
+      return () => clearTimeout(timeout);
+    }
+  }, [houses, markHousesAsOld]);
+  
+  return (
+    <>
+      {houses.map((house) => (
+        <House
+          id={house.id}
+          position={[house.x, 0, house.z]}
+          rotation={house.rotation}
+          scale={house.scale || 1} // Usar la escala guardada en el árbol o 1 por defecto
+          isNew={house.isNew}
+          color={house.color}
+          roofColor={house.roofColor}
+        />
+      ))}
+    </>
+  );
+}
 
 // Camera control and setup with auto-adjustment based on tree count
 const CameraSetup = () => {
@@ -79,7 +122,9 @@ const AutoIncrementHandler = () => {
 };
 
 // Main Scene component
-export const Scene3D = () => {
+export const Scene3D = ({
+  itemToRender = ItemToRender.TREE,
+}) => {
   const { 
     treeCount, 
     setTreeCount, 
@@ -222,7 +267,10 @@ export const Scene3D = () => {
         
         {/* Scene Elements */}
         <Ground size={1000} /> {/* Larger ground to accommodate more trees */}
-        <TreesGroup />
+        {itemToRender == ItemToRender.HOUSE && (<HousesGroup />)}
+        {itemToRender == ItemToRender.TREE && (<TreesGroup />)}
+        
+        {/* Add a grid helper for reference */}
         
         {/* Fog for distance effect */}
         <fog attach="fog" args={['#87CEEB', 30, 250]} />
