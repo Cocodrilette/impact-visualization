@@ -27,15 +27,23 @@ const TreesGroup = () => {
 
   return (
     <>
-      {trees.map((tree) => (
-        <Tree
-          key={tree.id}
-          position={[tree.x, 0, tree.z]}
-          rotation={tree.rotation}
-          scale={tree.scale || 1} // Usar la escala guardada en el árbol o 1 por defecto
-          isNew={tree.isNew}
-        />
-      ))}
+      {trees.map((tree) => {
+        // Determinar variante del árbol basado en el ID
+        // Para árboles existentes, usar ID para garantizar consistencia
+        // Usando módulo para distribuir uniformemente entre las variantes
+        const treeVariant = tree.id % 2 === 0 ? 'spherical' : 'lowpoly';
+        
+        return (
+          <Tree
+            key={tree.id}
+            position={[tree.x, 0, tree.z]}
+            rotation={tree.rotation}
+            scale={tree.scale || 1} // Usar la escala guardada en el árbol o 1 por defecto
+            isNew={tree.isNew}
+            variant={treeVariant}
+          />
+        );
+      })}
     </>
   );
 };
