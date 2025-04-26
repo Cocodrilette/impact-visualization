@@ -1,10 +1,11 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 import { useTreeStore } from '../store/treeStore';
 import Tree from './Tree';
 import Ground from './Ground';
+import { SkyElements } from './SkyElements';
 
 const TreesGroup = () => {
   const { trees, updateInterval, updateTreePositions, markTreesAsOld } = useTreeStore();
@@ -200,6 +201,9 @@ export const Scene3D = () => {
         <AutoIncrementHandler />
         <OrbitControls enableDamping dampingFactor={0.05} />
         <color attach="background" args={['#87CEEB']} /> {/* Sky blue background */}
+        
+        {/* Sky Elements */}
+        <SkyElements />
         
         {/* Lighting */}
         <ambientLight intensity={0.3} />
