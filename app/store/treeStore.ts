@@ -156,8 +156,8 @@ export const useTreeStore = create<TreeState>()(
     treeCount: 4, // Comenzar con pocos árboles
     trees: [],
     updateInterval: 5000, // Intervalo de actualización: 5 segundos
-    gridSize: 5, // Espacio entre árboles
-    randomnessFactor: 0.6, // Valor predeterminado: desorden moderado
+    gridSize: 6, // Espacio entre árboles
+    randomnessFactor: 0.8, // Valor predeterminado: desorden moderado
     autoIncrementEnabled: false,
     autoIncrementInterval: 3000, // Incremento automático cada 3 segundos
     
