@@ -191,7 +191,7 @@ export const Scene3D = () => {
       <div className="absolute top-4 right-4 z-10 bg-white/80 dark:bg-black/80 p-4 rounded-lg shadow">
         <h3 className="text-base font-medium mb-2">Estadísticas</h3>
         <ul className="space-y-1 text-sm">
-          <li>Árboles: {houseCount}</li>
+          <li>Casas: {houseCount}</li>
           <li>Dimensión: {Math.ceil(Math.sqrt(houseCount))}x{Math.ceil(Math.sqrt(houseCount))}</li>
           <li>Separación: {gridSize} unidades</li>
           <li>Aleatoriedad: {Math.round(randomnessFactor * 100)}%</li>
