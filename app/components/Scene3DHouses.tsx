@@ -158,7 +158,7 @@ export const Scene3D = () => {
           {autoIncrementEnabled && (
             <div>
               <label className="block mb-1">
-                Growth Speed: {(60000 / autoIncrementInterval).toFixed(1)} trees/min
+                Growth Speed: {(60000 / autoIncrementInterval).toFixed(1)} houses/min
               </label>
               <input
                 type="range"
