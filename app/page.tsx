@@ -12,8 +12,8 @@ export default function Home() {
   return (
     <main className="flex flex-col items-center justify-between min-h-screen p-4">
       <div className="w-full h-screen">
-        <h1 className="text-2xl font-bold mb-4 text-center">Visualización de Árboles 3D</h1>
-        <div className="w-full h-[calc(100vh-8rem)] rounded-lg overflow-hidden border-2 border-gray-200">
+        {/* <h1 className="text-2xl font-bold mb-4 text-center">Árboles salvados</h1> */}
+        <div className="w-full h-[calc(100vh-2rem)] rounded-lg overflow-hidden border-2 border-gray-200">
           <Scene3DWithNoSSR />
         </div>
       </div>

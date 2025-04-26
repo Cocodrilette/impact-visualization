@@ -13,6 +13,12 @@ interface TreePosition {
   randomOffset: { x: number; z: number }; // Offset para desorden controlado
 }
 
+interface ApiCache {
+  lastFetched: number; // timestamp de la última petición exitosa
+  data: any; // datos de la última respuesta
+  expiresAt: number; // timestamp de expiración de la caché
+}
+
 interface TreeState {
   treeCount: number;
   trees: TreePosition[];
@@ -21,6 +27,20 @@ interface TreeState {
   randomnessFactor: number; // 0-1 factor para determinar cuánto desorden
   autoIncrementEnabled: boolean; // Auto increment trees
   autoIncrementInterval: number; // milliseconds
+  
+  // Nueva configuración para API
+  apiUpdateEnabled: boolean; // Actualización desde API
+  apiUpdateInterval: number; // Intervalo de actualización desde API
+  apiUrl: string; // URL de la API
+  apiTargetCount: number; // Cantidad objetivo de árboles según la API
+  isIncrementalAnimationInProgress: boolean; // Indica si hay una animación incremental en progreso
+  incrementalAnimationInterval: number; // Intervalo para la animación incremental
+  
+  // Control de caché y rate limiting
+  apiCache: ApiCache | null;
+  minTimeBetweenRequests: number; // tiempo mínimo entre peticiones en ms
+  isRequestInProgress: boolean; // indica si hay una petición en curso
+  
   updateTreePositions: () => void; // Función para actualizar posiciones de árboles
   setTreeCount: (count: number) => void;
   setUpdateInterval: (interval: number) => void;
@@ -30,6 +50,16 @@ interface TreeState {
   markTreesAsOld: () => void;
   setGridSize: (size: number) => void;
   setRandomnessFactor: (factor: number) => void;
+  
+  // Nuevos métodos para API
+  toggleApiUpdate: () => void;
+  setApiUpdateInterval: (interval: number) => void;
+  setApiUrl: (url: string) => void;
+  updateTreesFromApi: () => Promise<void>;
+  setApiTargetCount: (count: number) => void;
+  startIncrementalAnimation: () => void;
+  setIncrementalAnimationInterval: (interval: number) => void;
+  setMinTimeBetweenRequests: (time: number) => void;
 }
 
 // Función para generar un offset aleatorio basado en el factor de aleatoriedad y tamaño de cuadrícula
@@ -131,6 +161,19 @@ export const useTreeStore = create<TreeState>()(
     autoIncrementEnabled: false,
     autoIncrementInterval: 3000, // Incremento automático cada 3 segundos
     
+    // Nueva configuración para API
+    apiUpdateEnabled: false, // Actualización desde API desactivada por defecto
+    apiUpdateInterval: 10000, // Intervalo de actualización desde API: 10 segundos
+    apiUrl: '', // URL de la API vacía por defecto
+    apiTargetCount: 0, // Cantidad objetivo de árboles según la API
+    isIncrementalAnimationInProgress: false, // Indica si hay una animación incremental en progreso
+    incrementalAnimationInterval: 1000, // Intervalo para la animación incremental
+    
+    // Control de caché y rate limiting
+    apiCache: null,
+    minTimeBetweenRequests: 60000, // 1 minuto por defecto
+    isRequestInProgress: false,
+    
     // Función para actualizar posiciones de árboles (ahora como parte del store)
     updateTreePositions: () => {
       // Esta función está desactivada pero la mantenemos por compatibilidad
@@ -205,6 +248,141 @@ export const useTreeStore = create<TreeState>()(
       // Iniciar con un array vacío para recalcular todas las posiciones con el nuevo factor
       const updatedTrees = calculateGridPositions(treeCount, gridSize, factor, []);
       set({ trees: updatedTrees });
+    },
+    
+    // Nuevos métodos para API
+    toggleApiUpdate: () => {
+      set(state => ({ apiUpdateEnabled: !state.apiUpdateEnabled }));
+    },
+    
+    setApiUpdateInterval: (interval: number) => {
+      set({ apiUpdateInterval: interval });
+    },
+    
+    setApiUrl: (url: string) => {
+      set({ apiUrl: url });
+    },
+    
+    updateTreesFromApi: async () => {
+      const { apiUrl, isIncrementalAnimationInProgress, apiCache, minTimeBetweenRequests, isRequestInProgress } = get();
+      
+      // No hacer nada si una animación incremental ya está en progreso
+      if (isIncrementalAnimationInProgress) {
+        console.log("Incremental animation in progress, skipping API update");
+        return;
+      }
+      
+      if (!apiUrl) {
+        console.error("API URL is not set.");
+        return;
+      }
+      
+      // Verificar si hay una petición en curso
+      if (isRequestInProgress) {
+        console.log("Request already in progress, skipping API update");
+        return;
+      }
+      
+      // Verificar si la caché es válida
+      const now = Date.now();
+      if (apiCache && apiCache.expiresAt > now) {
+        console.log("Using cached data");
+        get().setApiTargetCount(apiCache.data.arboles_salvados);
+        return;
+      }
+      
+      // Verificar si se ha respetado el tiempo mínimo entre peticiones
+      if (apiCache && now - apiCache.lastFetched < minTimeBetweenRequests) {
+        console.log("Too soon since last request, skipping API update");
+        return;
+      }
+      
+      set({ isRequestInProgress: true });
+      
+      try {
+        const response = await fetch(apiUrl);
+        if (!response.ok) {
+          throw new Error(`API request failed with status ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log("API response:", data);
+        
+        // Verificar si el campo arboles_salvados existe en la respuesta
+        if (data && data.arboles_salvados) {
+          // Convertir el string a número
+          const arbolesCount = Math.round(parseFloat(data.arboles_salvados));
+          
+          if (!isNaN(arbolesCount)) {
+            // Calcular el número de árboles a mostrar (ajuste según necesidad)
+            // Aquí dividimos por 10000 para tener un número manejable 
+            const targetCount = Math.round(arbolesCount / 100);
+            console.log(`API response: ${arbolesCount} trees, target count: ${targetCount}`);
+            
+            // Obtener el conteo actual de árboles
+            const currentCount = get().treeCount;
+            
+            // Actualizar el conteo objetivo
+            get().setApiTargetCount(targetCount);
+            
+            console.log(`API árboles: ${arbolesCount}, objetivo: ${targetCount}, actual: ${currentCount}`);
+            
+            if (targetCount > currentCount) {
+              console.log(`Iniciando animación incremental para añadir ${targetCount - currentCount} árboles`);
+              // Si es la primera carga de datos, mostrar uno por uno
+              get().startIncrementalAnimation();
+            } else if (targetCount < currentCount) {
+              // Si hay menos árboles que antes (raro, pero posible), ajustar inmediatamente
+              console.log(`Reduciendo árboles de ${currentCount} a ${targetCount}`);
+              get().setTreeCount(targetCount);
+            }
+            // Si es igual, no hacemos nada
+            
+            // Actualizar la caché
+            set({
+              apiCache: {
+                lastFetched: now,
+                data,
+                expiresAt: now + minTimeBetweenRequests
+              }
+            });
+          }
+        } else {
+          console.warn("Response format not recognized: missing 'arboles_salvados' field");
+        }
+      } catch (error) {
+        console.error("Failed to update trees from API:", error);
+      } finally {
+        set({ isRequestInProgress: false });
+      }
+    },
+    
+    setApiTargetCount: (count: number) => {
+      set({ apiTargetCount: count });
+    },
+    
+    startIncrementalAnimation: () => {
+      const { apiTargetCount, treeCount, incrementalAnimationInterval } = get();
+      if (apiTargetCount > treeCount) {
+        set({ isIncrementalAnimationInProgress: true });
+        const intervalId = setInterval(() => {
+          const { treeCount, apiTargetCount } = get();
+          if (treeCount < apiTargetCount) {
+            get().incrementTreeCount();
+          } else {
+            clearInterval(intervalId);
+            set({ isIncrementalAnimationInProgress: false });
+          }
+        }, incrementalAnimationInterval);
+      }
+    },
+    
+    setIncrementalAnimationInterval: (interval: number) => {
+      set({ incrementalAnimationInterval: interval });
+    },
+    
+    setMinTimeBetweenRequests: (time: number) => {
+      set({ minTimeBetweenRequests: time });
     },
   }))
 );

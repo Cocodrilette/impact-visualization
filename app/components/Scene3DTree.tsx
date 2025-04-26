@@ -1,35 +1,37 @@
-import React, { useEffect } from 'react';
-import { Canvas, useThree } from '@react-three/fiber';
-import { OrbitControls } from '@react-three/drei';
-import { useTreeStore } from '../store/treeStore';
-import Tree from './Tree';
-import Ground from './Ground';
-import { SkyElements } from './SkyElements';
+import React, { useEffect } from "react";
+import { Canvas, useThree } from "@react-three/fiber";
+import { OrbitControls } from "@react-three/drei";
+import { useTreeStore } from "../store/treeStore";
+import Tree from "./Tree";
+import Ground from "./Ground";
+import { SkyElements } from "./SkyElements";
+import { useUnergyMetricsData } from "../hooks/api";
+import { ApiTreeUpdater } from "./ApiTreeUpdater";
 
 const TreesGroup = () => {
   const { trees, markTreesAsOld } = useTreeStore();
-  
+
   // Ya no necesitamos actualizar posiciones periódicamente, solo gestionar árboles nuevos
   useEffect(() => {
-    const hasNewTree = trees.some(tree => tree.isNew);
-    
+    const hasNewTree = trees.some((tree) => tree.isNew);
+
     if (hasNewTree) {
       // Wait for animation to complete before marking trees as old
       const timeout = setTimeout(() => {
         markTreesAsOld();
       }, 2000); // Animation duration + buffer
-      
+
       return () => clearTimeout(timeout);
     }
   }, [trees, markTreesAsOld]);
-  
+
   return (
     <>
       {trees.map((tree) => (
-        <Tree 
-          key={tree.id} 
-          position={[tree.x, 0, tree.z]} 
-          rotation={tree.rotation} 
+        <Tree
+          key={tree.id}
+          position={[tree.x, 0, tree.z]}
+          rotation={tree.rotation}
           scale={tree.scale || 1} // Usar la escala guardada en el árbol o 1 por defecto
           isNew={tree.isNew}
         />
@@ -42,47 +44,48 @@ const TreesGroup = () => {
 const CameraSetup = () => {
   const { camera } = useThree();
   const { trees, treeCount, gridSize } = useTreeStore();
-  
+
   useEffect(() => {
     // Calculate camera position based on tree grid size
     const gridSideLength = Math.ceil(Math.sqrt(treeCount));
-    
+
     // Calculate required distance to view all trees
     // The higher the tree count, the further away the camera needs to be
     const distance = Math.max(20, gridSideLength * gridSize * 0.7);
     const height = Math.max(15, gridSideLength * 2);
-    
+
     // Position the camera based on the grid size
     camera.position.set(0, height, distance);
     camera.lookAt(0, 0, 0);
   }, [camera, trees, treeCount, gridSize]);
-  
+
   return null;
 };
 
 // Auto-increment handler component
 const AutoIncrementHandler = () => {
-  const { autoIncrementEnabled, autoIncrementInterval, incrementTreeCount } = useTreeStore();
-  
+  const { autoIncrementEnabled, autoIncrementInterval, incrementTreeCount } =
+    useTreeStore();
+
   useEffect(() => {
     if (!autoIncrementEnabled) return;
-    
+
     const intervalId = setInterval(() => {
       incrementTreeCount();
     }, autoIncrementInterval);
-    
+
     return () => clearInterval(intervalId);
   }, [autoIncrementEnabled, autoIncrementInterval, incrementTreeCount]);
-  
+
   return null;
 };
 
 // Main Scene component
 export const Scene3D = () => {
-  const { 
-    treeCount, 
-    setTreeCount, 
-    updateInterval, 
+  const {
+    treeCount,
+    setTreeCount,
+    updateInterval,
     setUpdateInterval,
     autoIncrementEnabled,
     toggleAutoIncrement,
@@ -91,13 +94,15 @@ export const Scene3D = () => {
     gridSize,
     setGridSize,
     randomnessFactor,
-    setRandomnessFactor
+    setRandomnessFactor,
   } = useTreeStore();
+  const { data } = useUnergyMetricsData();
+  console.log(data);
 
   return (
     <div className="h-full w-full relative">
       {/* Controls UI */}
-      <div className="absolute top-4 left-4 z-10 bg-white/80 dark:bg-black/80 p-4 rounded-lg shadow max-h-[calc(100vh-8rem)] overflow-y-auto">
+      {/* <div className="absolute top-4 left-4 z-10 bg-white/80 dark:bg-black/80 p-4 rounded-lg shadow max-h-[calc(100vh-8rem)] overflow-y-auto">
         <h2 className="text-lg font-bold mb-2">Controls</h2>
         <div className="space-y-4">
           <div>
@@ -111,7 +116,7 @@ export const Scene3D = () => {
               className="w-full"
             />
           </div>
-          
+
           <div>
             <label className="block mb-1">Grid Spacing: {gridSize}</label>
             <input
@@ -122,22 +127,30 @@ export const Scene3D = () => {
               onChange={(e) => setGridSize(parseInt(e.target.value))}
               className="w-full"
             />
-            <span className="text-xs text-gray-500">Controla la separación entre árboles en la cuadrícula</span>
+            <span className="text-xs text-gray-500">
+              Controla la separación entre árboles en la cuadrícula
+            </span>
           </div>
-          
+
           <div>
-            <label className="block mb-1">Randomness: {Math.round(randomnessFactor * 100)}%</label>
+            <label className="block mb-1">
+              Randomness: {Math.round(randomnessFactor * 100)}%
+            </label>
             <input
               type="range"
               min="0"
               max="100"
               value={randomnessFactor * 100}
-              onChange={(e) => setRandomnessFactor(parseInt(e.target.value) / 100)}
+              onChange={(e) =>
+                setRandomnessFactor(parseInt(e.target.value) / 100)
+              }
               className="w-full"
             />
-            <span className="text-xs text-gray-500">Desorden en la colocación de los árboles</span>
+            <span className="text-xs text-gray-500">
+              Desorden en la colocación de los árboles
+            </span>
           </div>
-          
+
           <div>
             <label className="block mb-1">Auto Increment Trees</label>
             <div className="flex items-center gap-2">
@@ -150,11 +163,12 @@ export const Scene3D = () => {
               <span>{autoIncrementEnabled ? "Enabled" : "Disabled"}</span>
             </div>
           </div>
-          
+
           {autoIncrementEnabled && (
             <div>
               <label className="block mb-1">
-                Growth Speed: {(60000 / autoIncrementInterval).toFixed(1)} trees/min
+                Growth Speed: {(60000 / autoIncrementInterval).toFixed(1)}{" "}
+                trees/min
               </label>
               <input
                 type="range"
@@ -162,14 +176,18 @@ export const Scene3D = () => {
                 max="10000"
                 step="500"
                 value={autoIncrementInterval}
-                onChange={(e) => setAutoIncrementInterval(parseInt(e.target.value))}
+                onChange={(e) =>
+                  setAutoIncrementInterval(parseInt(e.target.value))
+                }
                 className="w-full"
               />
             </div>
           )}
-          
+
           <div>
-            <label className="block mb-1">Update Interval: {updateInterval / 1000}s</label>
+            <label className="block mb-1">
+              Update Interval: {updateInterval / 1000}s
+            </label>
             <input
               type="range"
               min="1000"
@@ -181,29 +199,31 @@ export const Scene3D = () => {
             />
           </div>
         </div>
-      </div>
-      
+      </div> */}
+
       {/* Stats Panel */}
       <div className="absolute top-4 right-4 z-10 bg-white/80 dark:bg-black/80 p-4 rounded-lg shadow">
-        <h3 className="text-base font-medium mb-2">Estadísticas</h3>
-        <ul className="space-y-1 text-sm">
-          <li>Árboles: {treeCount}</li>
-          <li>Dimensión: {Math.ceil(Math.sqrt(treeCount))}x{Math.ceil(Math.sqrt(treeCount))}</li>
+        <h3 className="text-base font-medium">Árboles: {treeCount}</h3>
+        {/* <ul className="space-y-1 text-sm"> */}
+          {/* <li>Árboles: {treeCount}</li> */}
+          {/* <li>
+            Dimensión: {Math.ceil(Math.sqrt(treeCount))}x
+            {Math.ceil(Math.sqrt(treeCount))}
+          </li>
           <li>Separación: {gridSize} unidades</li>
-          <li>Aleatoriedad: {Math.round(randomnessFactor * 100)}%</li>
-        </ul>
+          <li>Aleatoriedad: {Math.round(randomnessFactor * 100)}%</li> */}
+        {/* </ul> */}
       </div>
-      
+
       {/* 3D Canvas */}
       <Canvas shadows>
         <CameraSetup />
         <AutoIncrementHandler />
         <OrbitControls enableDamping dampingFactor={0.05} />
-        <color attach="background" args={['#87CEEB']} /> {/* Sky blue background */}
-        
+        <color attach="background" args={["#87CEEB"]} />{" "}
+        {/* Sky blue background */}
         {/* Sky Elements */}
         <SkyElements />
-        
         {/* Lighting */}
         <ambientLight intensity={0.3} />
         <hemisphereLight intensity={0.5} groundColor="#382b1d" />
@@ -218,15 +238,19 @@ export const Scene3D = () => {
           shadow-camera-top={50}
           shadow-camera-bottom={-50}
         />
-        
         {/* Scene Elements */}
         <Ground size={1000} /> {/* Larger ground to accommodate more trees */}
+        <ApiTreeUpdater
+          apiUrl="https://cocodrilette-ableorangemarmoset.web.val.run"
+          updateInterval={60000} // Comprobar actualizaciones cada minuto
+          minTimeBetweenRequests={60000} // Mínimo 5 minutos entre peticiones reales
+          incrementalAnimationInterval={500} // Velocidad de aparición de nuevos árboles
+          enabled={true}
+        />
         <TreesGroup />
-        
         {/* Add a grid helper for reference */}
-        
         {/* Fog for distance effect */}
-        <fog attach="fog" args={['#87CEEB', 30, 250]} />
+        <fog attach="fog" args={["#87CEEB", 30, 250]} />
       </Canvas>
     </div>
   );
