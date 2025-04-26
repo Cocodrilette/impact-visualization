@@ -98,7 +98,9 @@ export const Scene3D = () => {
     autoIncrementInterval,
     setAutoIncrementInterval,
     gridSize,
-    setGridSize
+    setGridSize,
+    randomnessFactor,
+    setRandomnessFactor
   } = useTreeStore();
 
   return (
@@ -130,6 +132,19 @@ export const Scene3D = () => {
               className="w-full"
             />
             <span className="text-xs text-gray-500">Controla la separación entre árboles en la cuadrícula</span>
+          </div>
+          
+          <div>
+            <label className="block mb-1">Randomness: {Math.round(randomnessFactor * 100)}%</label>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={randomnessFactor * 100}
+              onChange={(e) => setRandomnessFactor(parseInt(e.target.value) / 100)}
+              className="w-full"
+            />
+            <span className="text-xs text-gray-500">Desorden en la colocación de los árboles</span>
           </div>
           
           <div>
@@ -184,6 +199,7 @@ export const Scene3D = () => {
           <li>Árboles: {treeCount}</li>
           <li>Dimensión: {Math.ceil(Math.sqrt(treeCount))}x{Math.ceil(Math.sqrt(treeCount))}</li>
           <li>Separación: {gridSize} unidades</li>
+          <li>Aleatoriedad: {Math.round(randomnessFactor * 100)}%</li>
         </ul>
       </div>
       
