@@ -1,6 +1,7 @@
 import React from 'react';
 import { Line, Html } from '@react-three/drei';
 import { useTreeStore } from '../store/treeStore';
+import { Vector2 } from 'three';
 
 /**
  * Componente que renderiza los límites de las zonas como líneas blancas en 3D
@@ -27,15 +28,15 @@ const ZoneBoundaries: React.FC = () => {
           [position.x + halfWidth, 0.1, position.z + halfDepth], // Esquina superior derecha
           [position.x - halfWidth, 0.1, position.z + halfDepth], // Esquina superior izquierda
           [position.x - halfWidth, 0.1, position.z - halfDepth]  // Cerrar el polígono volviendo a la primera esquina
-        ];
-        
+        ] as unknown as Vector2[]
+          
         return (
           <group key={id}>
             {/* Línea delimitadora */}
             <Line
               points={cornerPoints}
-              color="white"
-              lineWidth={1.5}
+              color="black"
+              lineWidth={2}
               dashed={false}
             />
             
@@ -43,7 +44,7 @@ const ZoneBoundaries: React.FC = () => {
             <Html
               position={[position.x, 0.5, position.z]}
               center
-              distanceFactor={40}
+              distanceFactor={60}
             >
               <div className="zone-label">
                 <div className="zone-name" style={{ color: color || 'white' }}>{name}</div>

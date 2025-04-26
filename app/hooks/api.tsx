@@ -78,17 +78,28 @@ export const fetchMinifarms = async (): Promise<Array<{
     const jsonData = await response.json() as Minifarm[];
     
     // Transformar los datos para el formato requerido por las zonas
-    return jsonData.map((minifarm: Minifarm, index: number) => ({
-      name: minifarm.nombre_corto || minifarm.nombre_proyecto,
-      // Generar un color aleatorio o usar uno basado en el índice
-      color: getColorForIndex(index),
-      // Usar arboles_salvados de las métricas o un valor predeterminado
-      treeCount: minifarm.metrics?.arboles_salvados || 0,
-      // Clave API específica para cada minifarm
-      apiDataKey: `[${index}].metrics.arboles_salvados`,
-      // Factor de escala para convertir datos de la API en árboles visibles
-      scaleFactor: 1.0
-    }));
+    return jsonData.map((minifarm: Minifarm, index: number) => {
+      // Eliminar dígitos, "MGS" y otras abreviaciones comunes
+      let name = minifarm.nombre_corto || minifarm.nombre_proyecto;
+      name = name.replace(/\d+/g, '') // Eliminar todos los dígitos
+                .replace(/MGS|MG|MS/g, '') // Eliminar abreviaciones comunes
+                .replace(/\s+/g, ' ') // Eliminar espacios múltiples
+                .replace("Minigranja Solar", "") // Eliminar "Minigranja Solar"
+                .trim(); // Eliminar espacios al inicio y final
+      name = `Minigranja Solar ${name}`; // Añadir "Minigranja Solar" al inicio
+      
+      return {
+        name,
+        // Generar un color aleatorio o usar uno basado en el índice
+        color: getColorForIndex(index),
+        // Usar arboles_salvados de las métricas o un valor predeterminado
+        treeCount: Math.round(minifarm.metrics?.arboles_salvados) || 0,
+        // Clave API específica para cada minifarm
+        apiDataKey: `[${index}].metrics.arboles_salvados`,
+        // Factor de escala para convertir datos de la API en árboles visibles
+        scaleFactor: 1.0
+      };
+    });
   } catch (error) {
     console.error("Error fetching minifarms:", error);
     // Si hay un error, devolver un array vacío o algunos datos de demostración

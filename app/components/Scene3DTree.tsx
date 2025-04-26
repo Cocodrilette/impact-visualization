@@ -196,8 +196,8 @@ const CameraSetup = () => {
 
     // Calculate required distance to view all trees
     // The higher the tree count, the further away the camera needs to be
-    const distance = Math.max(20, gridSideLength * gridSize * 0.7);
-    const height = Math.max(15, gridSideLength * 2);
+    const distance = Math.max(20, gridSideLength * gridSize * 0.3);
+    const height = Math.max(15, gridSideLength * 1.8);
 
     // Position the camera based on the grid size
     camera.position.set(0, height, distance);
