@@ -153,7 +153,7 @@ const calculateGridPositions = (
 
 export const useTreeStore = create<TreeState>()(
   subscribeWithSelector((set, get) => ({
-    treeCount: 4, // Comenzar con pocos árboles
+    treeCount: 1, // Comenzar con pocos árboles
     trees: [],
     updateInterval: 5000, // Intervalo de actualización: 5 segundos
     gridSize: 6, // Espacio entre árboles
@@ -164,7 +164,7 @@ export const useTreeStore = create<TreeState>()(
     // Nueva configuración para API
     apiUpdateEnabled: false, // Actualización desde API desactivada por defecto
     apiUpdateInterval: 10000, // Intervalo de actualización desde API: 10 segundos
-    apiUrl: '', // URL de la API vacía por defecto
+    apiUrl: process.env.NEXT_PUBLIC_UNERGY_METRICS_API || "", // URL de la API vacía por defecto
     apiTargetCount: 0, // Cantidad objetivo de árboles según la API
     isIncrementalAnimationInProgress: false, // Indica si hay una animación incremental en progreso
     incrementalAnimationInterval: 1000, // Intervalo para la animación incremental
@@ -265,7 +265,7 @@ export const useTreeStore = create<TreeState>()(
     
     updateTreesFromApi: async () => {
       const { apiUrl, isIncrementalAnimationInProgress, apiCache, minTimeBetweenRequests, isRequestInProgress } = get();
-      
+
       // No hacer nada si una animación incremental ya está en progreso
       if (isIncrementalAnimationInProgress) {
         console.log("Incremental animation in progress, skipping API update");

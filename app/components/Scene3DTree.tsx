@@ -249,7 +249,6 @@ export const Scene3D = () => {
         {/* Scene Elements */}
         <Ground size={1000} /> {/* Larger ground to accommodate more trees */}
         <ApiTreeUpdater
-          apiUrl="https://cocodrilette-ableorangemarmoset.web.val.run"
           updateInterval={60000} // Comprobar actualizaciones cada minuto
           minTimeBetweenRequests={60000} // Mínimo 5 minutos entre peticiones reales
           incrementalAnimationInterval={500} // Velocidad de aparición de nuevos árboles

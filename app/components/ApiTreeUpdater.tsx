@@ -2,7 +2,6 @@ import { useEffect } from 'react';
 import { useTreeStore } from '../store/treeStore';
 
 interface ApiTreeUpdaterProps {
-  apiUrl: string;
   updateInterval?: number; // en milisegundos
   enabled?: boolean;
   incrementalAnimationInterval?: number; // intervalo para la animación incremental
@@ -20,7 +19,6 @@ interface ApiTreeUpdaterProps {
  * @param minTimeBetweenRequests Tiempo mínimo entre peticiones en ms (por defecto: 60000ms - 1 minuto)
  */
 export const ApiTreeUpdater: React.FC<ApiTreeUpdaterProps> = ({
-  apiUrl,
   updateInterval = 60000, // Por defecto, actualizar cada minuto
   enabled = true,
   incrementalAnimationInterval = 800, // Por defecto, añadir un árbol cada 800ms
@@ -36,12 +34,10 @@ export const ApiTreeUpdater: React.FC<ApiTreeUpdaterProps> = ({
 
   // Configurar la URL y los intervalos
   useEffect(() => {
-    setApiUrl(apiUrl);
     setApiUpdateInterval(updateInterval);
     setIncrementalAnimationInterval(incrementalAnimationInterval);
     setMinRequestTime(minTimeBetweenRequests);
   }, [
-    apiUrl, 
     updateInterval, 
     incrementalAnimationInterval,
     minTimeBetweenRequests,
