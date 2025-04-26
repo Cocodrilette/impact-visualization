@@ -148,7 +148,7 @@ export const Tree: React.FC<TreeProps> = ({
       )}
 
       {/* Floating label over the tree */}
-      {showLabel && label && (
+      {/* {showLabel && label && (
         <Html
           position={[0, variant === 'spherical' ? 5.2 : 5.5, 0]}
           center
@@ -159,7 +159,7 @@ export const Tree: React.FC<TreeProps> = ({
             {label}
           </div>
         </Html>
-      )}
+      )} */}
     </group>
   );
 };

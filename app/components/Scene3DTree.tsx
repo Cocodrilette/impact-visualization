@@ -35,7 +35,7 @@ const ZoneInitializer = () => {
           
           // Calcular el layout para las zonas
           const minifarmCount = minifarms.length;
-          const zoneSpacing = 40; // Distancia entre zonas
+          const zoneSpacing = 50; // Distancia entre zonas
           
           // Calcular dimensiones de la cuadrícula para las zonas
           const gridSize = Math.ceil(Math.sqrt(minifarmCount));
@@ -62,7 +62,7 @@ const ZoneInitializer = () => {
               color: minifarm.color,
               position: { x, z },
               size: { width, depth },
-              treeCount: minifarm.treeCount,
+              treeCount: minifarm.treeCount / 100,
             });
           });
           
@@ -196,11 +196,12 @@ const CameraSetup = () => {
 
     // Calculate required distance to view all trees
     // The higher the tree count, the further away the camera needs to be
-    const distance = Math.max(20, gridSideLength * gridSize * 0.3);
-    const height = Math.max(15, gridSideLength * 1.8);
+    const distance = Math.max(60, gridSideLength * gridSize * 0.001);
+    const height = Math.max(30, gridSideLength * 1.8);
+    const rotation = gridSideLength * 1.5; // Fixed rotation for a better view
 
     // Position the camera based on the grid size
-    camera.position.set(0, height, distance);
+    camera.position.set(rotation, height, distance);
     camera.lookAt(0, 0, 0);
   }, [camera, trees, treeCount, gridSize]);
 
@@ -351,12 +352,12 @@ export const Scene3D = () => {
       {/* Stats Panel */}
       <div className="absolute top-4 right-4 z-10 bg-white/80 dark:bg-black/80 p-4 rounded-lg shadow">
         <h3 className="text-base font-medium">
-          Árboles Salvados: {savedTreeCount}
+          Árboles Salvados: {new Intl.NumberFormat().format(savedTreeCount)}
         </h3>
-        <ul className="space-y-1 text-xs">
+        {/* <ul className="space-y-1 text-xs">
           <li>Árboles generados: {treeCount}</li>
           <li>Zonas: {zones.length}</li>
-        </ul>
+        </ul> */}
       </div>
 
       {/* 3D Canvas */}
@@ -388,7 +389,7 @@ export const Scene3D = () => {
         <ApiTreeUpdater
           updateInterval={60000} // Comprobar actualizaciones cada minuto
           minTimeBetweenRequests={60000} // Mínimo 5 minutos entre peticiones reales
-          incrementalAnimationInterval={100} // Velocidad de aparición de nuevos árboles
+          incrementalAnimationInterval={200} // Velocidad de aparición de nuevos árboles
           enabled={true}
         />
         <TreesGroup />

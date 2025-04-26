@@ -94,7 +94,7 @@ const generateRandomOffset = (gridSize: number, randomnessFactor: number) => {
   };
 };
 
-// Función para calcular posiciones en cuadrícula dentro de una zona específica
+// Función para calcular posiciones en espiral dentro de una zona específica
 const calculateGridPositionsForZone = (
   count: number,
   gridSize: number,
@@ -118,21 +118,13 @@ const calculateGridPositionsForZone = (
     return positions.filter(tree => tree.zoneId !== zoneId).concat(existingZoneTrees.slice(0, count));
   }
   
-  // Calcular dimensiones de la cuadrícula basadas en la proporción de la zona
-  const aspectRatio = zone.size.width / zone.size.depth;
-  let gridCols = Math.ceil(Math.sqrt(count * aspectRatio));
-  let gridRows = Math.ceil(count / gridCols);
-  
-  // Asegurarse de que la cuadrícula cabe dentro de la zona
-  const cellSizeX = zone.size.width / gridCols;
-  const cellSizeZ = zone.size.depth / gridRows;
-  
   // Crear un mapa de posiciones ocupadas para evitar duplicados
-  const occupiedPositions = new Map();
+  const occupiedPositions = new Set();
   existingZoneTrees.forEach(tree => {
-    if (tree.gridRow !== undefined && tree.gridCol !== undefined) {
-      occupiedPositions.set(`${tree.gridRow}-${tree.gridCol}`, true);
-    }
+    // Redondear a una precisión específica para considerar posiciones cercanas como iguales
+    const roundedX = Math.round(tree.x * 10) / 10;
+    const roundedZ = Math.round(tree.z * 10) / 10;
+    occupiedPositions.add(`${roundedX},${roundedZ}`);
   });
   
   // ID para los nuevos árboles
@@ -141,42 +133,81 @@ const calculateGridPositionsForZone = (
   // Contador para los nuevos árboles añadidos
   let newTreesAdded = 0;
   
-  // Generar posiciones para los nuevos árboles dentro de la zona
-  for (let row = 0; row < gridRows && newTreesAdded < newTreeCount; row++) {
-    for (let col = 0; col < gridCols && newTreesAdded < newTreeCount; col++) {
-      // Verificar si esta posición ya está ocupada
-      const posKey = `${row}-${col}`;
-      if (!occupiedPositions.has(posKey)) {
-        // Generar offset aleatorio para esta posición
-        const randomOffset = generateRandomOffset(gridSize, randomnessFactor);
-        
-        // Generar una escala fija para este árbol
-        const fixedScale = 0.8 + Math.random() * 0.4; // Entre 0.8 y 1.2
-        
-        // Generar una rotación fija para este árbol
-        const fixedRotation = Math.random() * Math.PI * 2; // Entre 0 y 2π
-        
-        // Calcular posiciones dentro de la zona, con offset aleatorio
-        const x = zone.position.x - zone.size.width / 2 + cellSizeX * (col + 0.5) + randomOffset.x;
-        const z = zone.position.z - zone.size.depth / 2 + cellSizeZ * (row + 0.5) + randomOffset.z;
-        
-        positions.push({
-          id: nextId++,
-          x,
-          z,
-          rotation: fixedRotation,
-          scale: fixedScale,
-          isNew: true,
-          gridRow: row,
-          gridCol: col,
-          randomOffset,
-          zoneId
-        });
-        
-        // Marcar esta posición como ocupada
-        occupiedPositions.set(posKey, true);
-        newTreesAdded++;
-      }
+  // Parámetros de la espiral
+  const a = 0.7; // Factor de escala (controla qué tan abierta es la espiral)
+  const maxT = 40; // Máximo valor del parámetro t
+  
+  // Tamaño máximo para la espiral (basado en el tamaño de la zona)
+  const maxRadius = Math.min(zone.size.width, zone.size.depth) / 2;
+  
+  // Generar nuevos árboles en un patrón espiral
+  while (newTreesAdded < newTreeCount) {
+    // Calcular el parámetro t como una función del número de árboles añadidos
+    const t = (newTreesAdded / newTreeCount) * maxT;
+    
+    // Aplicar las ecuaciones de la espiral (r(t) = a * t * (cos(t), sin(t)))
+    let dx = a * t * Math.cos(t);
+    let dz = a * t * Math.sin(t);
+    
+    // Escalar la espiral si es necesario para que quepa en la zona
+    const currentRadius = Math.sqrt(dx * dx + dz * dz);
+    if (currentRadius > maxRadius) {
+      const scale = maxRadius / currentRadius;
+      dx *= scale;
+      dz *= scale;
+    }
+    
+    // Posición final en coordenadas absolutas
+    let x = zone.position.x + dx;
+    let z = zone.position.z + dz;
+    
+    // Añadir un poco de aleatoriedad a la posición para hacerla más natural
+    const randomOffset = {x: 0, z: 0};
+    x += randomOffset.x;
+    z += randomOffset.z;
+    
+    // Verificar que la posición está dentro de los límites de la zona
+    const halfWidth = zone.size.width / 2;
+    const halfDepth = zone.size.depth / 2;
+    
+    // Si el árbol está fuera de la zona, ajustar su posición
+    if (x < zone.position.x - halfWidth) x = zone.position.x - halfWidth + Math.random() * 2;
+    if (x > zone.position.x + halfWidth) x = zone.position.x + halfWidth - Math.random() * 2;
+    if (z < zone.position.z - halfDepth) z = zone.position.z - halfDepth + Math.random() * 2;
+    if (z > zone.position.z + halfDepth) z = zone.position.z + halfDepth - Math.random() * 2;
+    
+    // Verificar que esta posición no está ya ocupada
+    const roundedX = Math.round(x * 10) / 10;
+    const roundedZ = Math.round(z * 10) / 10;
+    const posKey = `${roundedX},${roundedZ}`;
+    
+    if (!occupiedPositions.has(posKey)) {
+      // Generar una escala aleatoria para este árbol
+      const fixedScale = 0.8 + Math.random() * 0.4; // Entre 0.8 y 1.2
+      
+      // Generar una rotación aleatoria para este árbol
+      const fixedRotation = Math.random() * Math.PI * 2; // Entre 0 y 2π
+      
+      positions.push({
+        id: nextId++,
+        x,
+        z,
+        rotation: fixedRotation,
+        scale: fixedScale,
+        isNew: true,
+        gridRow: Math.floor(t), // Usamos t para mantener una referencia a la posición en la espiral
+        gridCol: Math.floor(t * 10) % 10, // Valor arbitrario para mantener compatibilidad
+        randomOffset,
+        zoneId
+      });
+      
+      // Marcar esta posición como ocupada
+      occupiedPositions.add(posKey);
+      newTreesAdded++;
+    } else {
+      // Si la posición está ocupada, intentar con otro valor de t ligeramente diferente
+      // para evitar un bucle infinito
+      newTreesAdded += 0.01;
     }
   }
   

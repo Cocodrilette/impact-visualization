@@ -112,13 +112,26 @@ export const CartoonCloud = ({ position = [0, 0, 0] as [number, number, number],
 
 // Componente que agrupa varias nubes en el cielo
 export const CloudGroup = () => {
-  // Crear varias nubes con posiciones aleatorias
+  // Crear más nubes con posiciones más bajas
   const clouds = [
-    { position: [50, 60, -100] as [number, number, number], scale: 1.5, speed: 0.7, offset: 0 },
-    { position: [-80, 50, -150] as [number, number, number], scale: 2, speed: 0.5, offset: 2.5 },
-    { position: [0, 70, -120] as [number, number, number], scale: 1, speed: 0.9, offset: 5 },
-    { position: [-40, 55, -90] as [number, number, number], scale: 1.2, speed: 0.6, offset: 1.7 },
-    { position: [100, 45, -130] as [number, number, number], scale: 1.8, speed: 0.4, offset: 3.8 }
+    // Nubes originales pero con posiciones Y más bajas
+    { position: [50, 40, -100] as [number, number, number], scale: 1.5, speed: 0.7, offset: 0 },
+    { position: [-80, 35, -150] as [number, number, number], scale: 2, speed: 0.5, offset: 2.5 },
+    { position: [0, 45, -120] as [number, number, number], scale: 1, speed: 0.9, offset: 5 },
+    { position: [-40, 30, -90] as [number, number, number], scale: 1.2, speed: 0.6, offset: 1.7 },
+    { position: [100, 25, -130] as [number, number, number], scale: 1.8, speed: 0.4, offset: 3.8 },
+    
+    // Nubes adicionales
+    { position: [70, 20, -110] as [number, number, number], scale: 1.3, speed: 0.8, offset: 1.2 },
+    { position: [-60, 28, -140] as [number, number, number], scale: 1.7, speed: 0.6, offset: 4.2 },
+    { position: [20, 35, -160] as [number, number, number], scale: 1.4, speed: 0.55, offset: 2.8 },
+    { position: [-30, 22, -125] as [number, number, number], scale: 1.1, speed: 0.75, offset: 3.3 },
+    { position: [120, 32, -180] as [number, number, number], scale: 2.1, speed: 0.45, offset: 0.9 },
+    
+    // Algunas nubes más cercanas y bajas
+    { position: [35, 18, -70] as [number, number, number], scale: 1.0, speed: 1.1, offset: 2.0 },
+    { position: [-25, 15, -85] as [number, number, number], scale: 0.9, speed: 0.95, offset: 5.5 },
+    { position: [10, 12, -60] as [number, number, number], scale: 0.8, speed: 1.2, offset: 1.5 },
   ];
   
   return (
