@@ -1,52 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import React, { useEffect } from 'react';
+import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
-import * as THREE from 'three';
 import { useTreeStore } from '../store/treeStore';
 import { useHouseStore } from '../store/houseStore';
-import Tree from './Tree';
 import House from './House';
 import Ground from './Ground';
 import { SkyElements } from './SkyElements';
-
-
-export enum ItemToRender {
-  TREE = 'tree',
-  HOUSE = 'house',
-}
-
-
-const TreesGroup = () => {
-  const { trees, updateInterval, updateTreePositions, markTreesAsOld } = useTreeStore();
-  
-  // Ya no necesitamos actualizar posiciones periódicamente, solo gestionar árboles nuevos
-  useEffect(() => {
-    const hasNewTree = trees.some(tree => tree.isNew);
-    
-    if (hasNewTree) {
-      // Wait for animation to complete before marking trees as old
-      const timeout = setTimeout(() => {
-        markTreesAsOld();
-      }, 2000); // Animation duration + buffer
-      
-      return () => clearTimeout(timeout);
-    }
-  }, [trees, markTreesAsOld]);
-  
-  return (
-    <>
-      {trees.map((tree) => (
-        <Tree 
-          key={tree.id} 
-          position={[tree.x, 0, tree.z]} 
-          rotation={tree.rotation} 
-          scale={tree.scale || 1} // Usar la escala guardada en el árbol o 1 por defecto
-          isNew={tree.isNew}
-        />
-      ))}
-    </>
-  );
-};
 
 const HousesGroup = () => {
   const { houses, updateInterval, updateHousePositions, markHousesAsOld } = useHouseStore();
@@ -69,6 +28,7 @@ const HousesGroup = () => {
     <>
       {houses.map((house) => (
         <House
+          key={house.id}
           id={house.id}
           position={[house.x, 0, house.z]}
           rotation={house.rotation}
@@ -85,11 +45,11 @@ const HousesGroup = () => {
 // Camera control and setup with auto-adjustment based on tree count
 const CameraSetup = () => {
   const { camera } = useThree();
-  const { trees, treeCount, gridSize } = useTreeStore();
+  const { houses, houseCount, gridSize } = useHouseStore();
   
   useEffect(() => {
     // Calculate camera position based on tree grid size
-    const gridSideLength = Math.ceil(Math.sqrt(treeCount));
+    const gridSideLength = Math.ceil(Math.sqrt(houseCount));
     
     // Calculate required distance to view all trees
     // The higher the tree count, the further away the camera needs to be
@@ -99,7 +59,7 @@ const CameraSetup = () => {
     // Position the camera based on the grid size
     camera.position.set(0, height, distance);
     camera.lookAt(0, 0, 0);
-  }, [camera, trees, treeCount, gridSize]);
+  }, [camera, houses, houseCount, gridSize]);
   
   return null;
 };
@@ -122,12 +82,10 @@ const AutoIncrementHandler = () => {
 };
 
 // Main Scene component
-export const Scene3D = ({
-  itemToRender = ItemToRender.TREE,
-}) => {
+export const Scene3D = () => {
   const { 
-    treeCount, 
-    setTreeCount, 
+    houseCount, 
+    setHouseCount, 
     updateInterval, 
     setUpdateInterval,
     autoIncrementEnabled,
@@ -138,7 +96,7 @@ export const Scene3D = ({
     setGridSize,
     randomnessFactor,
     setRandomnessFactor
-  } = useTreeStore();
+  } = useHouseStore();
 
   return (
     <div className="h-full w-full relative">
@@ -147,13 +105,13 @@ export const Scene3D = ({
         <h2 className="text-lg font-bold mb-2">Controls</h2>
         <div className="space-y-4">
           <div>
-            <label className="block mb-1">Tree Count: {treeCount}</label>
+            <label className="block mb-1">House Count: {houseCount}</label>
             <input
               type="range"
               min="1"
               max="500"
-              value={treeCount}
-              onChange={(e) => setTreeCount(parseInt(e.target.value))}
+              value={houseCount}
+              onChange={(e) => setHouseCount(parseInt(e.target.value))}
               className="w-full"
             />
           </div>
@@ -168,7 +126,7 @@ export const Scene3D = ({
               onChange={(e) => setGridSize(parseInt(e.target.value))}
               className="w-full"
             />
-            <span className="text-xs text-gray-500">Controla la separación entre árboles en la cuadrícula</span>
+            <span className="text-xs text-gray-500">Controla la separación entre casas en la cuadrícula</span>
           </div>
           
           <div>
@@ -181,7 +139,7 @@ export const Scene3D = ({
               onChange={(e) => setRandomnessFactor(parseInt(e.target.value) / 100)}
               className="w-full"
             />
-            <span className="text-xs text-gray-500">Desorden en la colocación de los árboles</span>
+            <span className="text-xs text-gray-500">Desorden en la colocación de las casas</span>
           </div>
           
           <div>
@@ -233,8 +191,8 @@ export const Scene3D = ({
       <div className="absolute top-4 right-4 z-10 bg-white/80 dark:bg-black/80 p-4 rounded-lg shadow">
         <h3 className="text-base font-medium mb-2">Estadísticas</h3>
         <ul className="space-y-1 text-sm">
-          <li>Árboles: {treeCount}</li>
-          <li>Dimensión: {Math.ceil(Math.sqrt(treeCount))}x{Math.ceil(Math.sqrt(treeCount))}</li>
+          <li>Árboles: {houseCount}</li>
+          <li>Dimensión: {Math.ceil(Math.sqrt(houseCount))}x{Math.ceil(Math.sqrt(houseCount))}</li>
           <li>Separación: {gridSize} unidades</li>
           <li>Aleatoriedad: {Math.round(randomnessFactor * 100)}%</li>
         </ul>
@@ -267,8 +225,7 @@ export const Scene3D = ({
         
         {/* Scene Elements */}
         <Ground size={1000} /> {/* Larger ground to accommodate more trees */}
-        {itemToRender == ItemToRender.HOUSE && (<HousesGroup />)}
-        {itemToRender == ItemToRender.TREE && (<TreesGroup />)}
+        <HousesGroup />
         
         {/* Add a grid helper for reference */}
         
