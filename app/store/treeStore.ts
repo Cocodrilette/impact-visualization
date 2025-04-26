@@ -6,6 +6,7 @@ interface TreePosition {
   x: number;
   z: number;
   rotation: number;
+  scale: number;
   isNew: boolean;
   gridRow: number;
   gridCol: number;
@@ -22,7 +23,6 @@ interface TreeState {
   autoIncrementInterval: number; // milliseconds
   setTreeCount: (count: number) => void;
   setUpdateInterval: (interval: number) => void;
-  updateTreePositions: () => void;
   toggleAutoIncrement: () => void;
   setAutoIncrementInterval: (interval: number) => void;
   incrementTreeCount: () => void;
@@ -88,6 +88,12 @@ const calculateGridPositions = (
         // Generar offset aleatorio para esta posición
         const randomOffset = generateRandomOffset(gridSize, randomnessFactor);
         
+        // Generar una escala fija para este árbol
+        const fixedScale = 0.8 + Math.random() * 0.4; // Entre 0.8 y 1.2
+        
+        // Generar una rotación fija para este árbol
+        const fixedRotation = Math.random() * Math.PI * 2; // Entre 0 y 2π
+        
         // Calcular posiciones centradas en el sistema de coordenadas 3D, con offset aleatorio
         const x = (col - (gridSideLength - 1) / 2) * gridSize + randomOffset.x;
         const z = (row - (gridSideLength - 1) / 2) * gridSize + randomOffset.z;
@@ -96,7 +102,8 @@ const calculateGridPositions = (
           id: nextId++,
           x,
           z,
-          rotation: Math.random() * Math.PI * 2, // Rotación aleatoria fija
+          rotation: fixedRotation,
+          scale: fixedScale,
           isNew: true, // Marcar como nuevo para la animación
           gridRow: row, // Guardar coordenadas de la cuadrícula
           gridCol: col,
@@ -139,14 +146,6 @@ export const useTreeStore = create<TreeState>()(
     
     setUpdateInterval: (interval: number) => {
       set({ updateInterval: interval });
-    },
-    
-    updateTreePositions: () => {
-      const { treeCount, gridSize, randomnessFactor, trees } = get();
-      
-      // Preservar posiciones y rotaciones de árboles existentes
-      const updatedTrees = calculateGridPositions(treeCount, gridSize, randomnessFactor, trees);
-      set({ trees: updatedTrees });
     },
     
     toggleAutoIncrement: () => {
@@ -204,4 +203,12 @@ export const useTreeStore = create<TreeState>()(
 );
 
 // Inicializar posiciones de los árboles cuando se crea el store
-useTreeStore.getState().updateTreePositions();
+useTreeStore.getState().updateTreePositions = function() {}; // Desactivar la actualización automática
+calculateGridPositions(
+  useTreeStore.getState().treeCount,
+  useTreeStore.getState().gridSize,
+  useTreeStore.getState().randomnessFactor,
+  []
+).forEach(tree => {
+  useTreeStore.getState().trees.push(tree);
+});

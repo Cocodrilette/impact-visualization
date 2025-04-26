@@ -9,16 +9,7 @@ import Ground from './Ground';
 const TreesGroup = () => {
   const { trees, updateInterval, updateTreePositions, markTreesAsOld } = useTreeStore();
   
-  // Set up interval to update tree rotations (not positions)
-  useEffect(() => {
-    const intervalId = setInterval(() => {
-      updateTreePositions();
-    }, updateInterval);
-    
-    return () => clearInterval(intervalId);
-  }, [updateInterval, updateTreePositions]);
-  
-  // Mark trees as old after animation completes
+  // Ya no necesitamos actualizar posiciones periódicamente, solo gestionar árboles nuevos
   useEffect(() => {
     const hasNewTree = trees.some(tree => tree.isNew);
     
@@ -39,7 +30,7 @@ const TreesGroup = () => {
           key={tree.id} 
           position={[tree.x, 0, tree.z]} 
           rotation={tree.rotation} 
-          scale={0.8 + Math.random() * 0.4} 
+          scale={tree.scale || 1} // Usar la escala guardada en el árbol o 1 por defecto
           isNew={tree.isNew}
         />
       ))}

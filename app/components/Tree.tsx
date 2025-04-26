@@ -17,15 +17,14 @@ export const Tree: React.FC<TreeProps> = ({ position, rotation = 0, scale = 1, i
   // Animation timing
   const animationDuration = 1.5; // seconds
   
-  // Use frame to animate growth
+  // Use frame only for growth animation, not continuous rotation
   useFrame((state, delta) => {
     if (treeRef.current) {
-      // Apply subtle swaying motion
-      treeRef.current.rotation.y = rotation + Math.sin(state.clock.elapsedTime * 0.2) * 0.03;
+      // No more continuous rotation, use fixed rotation with very subtle sway
+      treeRef.current.rotation.y = rotation + Math.sin(state.clock.elapsedTime * 0.1) * 0.01;
       
-      // Handle growth animation
+      // Handle growth animation only for new trees
       if (isNew && growthProgress < 1) {
-        // Increment growth progress based on delta time and animation duration
         const increment = delta / animationDuration;
         setGrowthProgress(prev => Math.min(prev + increment, 1));
       }
