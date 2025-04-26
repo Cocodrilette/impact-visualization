@@ -153,7 +153,7 @@ const calculateGridPositions = (
 
 export const useTreeStore = create<TreeState>()(
   subscribeWithSelector((set, get) => ({
-    treeCount: 1, // Comenzar con pocos árboles
+    treeCount: 10, // Comenzar con pocos árboles
     trees: [],
     updateInterval: 5000, // Intervalo de actualización: 5 segundos
     gridSize: 6, // Espacio entre árboles
