@@ -1,15 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { Canvas, useThree } from "@react-three/fiber";
-import { OrbitControls, Html } from "@react-three/drei";
+import { OrbitControls, } from "@react-three/drei";
 import { useTreeStore } from "../store/treeStore";
 import Tree from "./Tree";
 import Ground from "./Ground";
 import { SkyElements } from "./SkyElements";
-import { useUnergyMetricsData, useUnergyProjectsApi, fetchMinifarms } from "../hooks/api";
+import { useUnergyMetricsData, fetchMinifarms } from "../hooks/api";
 import { ApiTreeUpdater } from "./ApiTreeUpdater";
 import ZoneBoundaries from "./ZoneBoundaries";
-import ZoneControls from "./ZoneControls";
-import { Zone } from "../store/treeStore";
 
 // Componente para inicializar las zonas de árboles
 const ZoneInitializer = () => {

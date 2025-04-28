@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Minifarm } from "../types/minifarm";
 
 export const useUnergyMetricsData = () => {
-  const url = "https://cocodrilette-ableorangemarmoset.web.val.run/stats"
+  const url = process.env.NEXT_PUBLIC_UNERGY_METRICS_API || "https://cocodrilette-ableorangemarmoset.web.val.run/stats"
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -32,7 +32,7 @@ export const useUnergyMetricsData = () => {
 
 
 export const useUnergyProjectsApi = () => {
-  const url = "https://cocodrilette-ableorangemarmoset.web.val.run/minifarms"
+  const url = process.env.NEXT_PUBLIC_MINIFARMS_API || "https://cocodrilette-ableorangemarmoset.web.val.run/minifarms";
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -67,7 +67,7 @@ export const fetchMinifarms = async (): Promise<Array<{
   apiDataKey: string;
   scaleFactor: number;
 }>> => {
-  const url = "https://cocodrilette-ableorangemarmoset.web.val.run/minifarms";
+  const url = process.env.NEXT_PUBLIC_MINIFARMS_API || "https://cocodrilette-ableorangemarmoset.web.val.run/minifarms";
   
   try {
     const response = await fetch(url);
